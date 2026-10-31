@@ -23,6 +23,51 @@
 ================================================================= */
 const SERVICE_FEE = 1000; // IDR
 
+/**
+ * localStorage key used to persist order history across sessions.
+ * Using a namespaced key avoids collisions with other apps on the same origin.
+ * The logout function deliberately DOES NOT remove this key so history
+ * survives the logout → login cycle.
+ */
+const STORAGE_KEY = 'antrigo_order_history';
+
+/* =================================================================
+   LOCALSTORAGE HELPERS
+================================================================= */
+
+/**
+ * Persists the current orderHistory array to localStorage.
+ * Called every time a user successfully confirms a checkout.
+ * Uses JSON.stringify so the plain-object array serialises cleanly.
+ */
+function saveHistory() {
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(orderHistory));
+  } catch (err) {
+    // localStorage can be unavailable in private-browsing / storage-full scenarios.
+    console.warn('[AntriGo] Could not save history to localStorage:', err);
+  }
+}
+
+/**
+ * Loads the persisted order history from localStorage on app boot.
+ * Returns the parsed array, or an empty array if nothing is stored yet
+ * or if the stored value is malformed JSON.
+ * @returns {Array<{id, date, items, total}>}
+ */
+function loadHistory() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) return [];                    // nothing stored yet
+    const parsed = JSON.parse(raw);
+    // Guard against corrupt data: ensure we got an array
+    return Array.isArray(parsed) ? parsed : [];
+  } catch (err) {
+    console.warn('[AntriGo] Could not parse history from localStorage:', err);
+    return [];
+  }
+}
+
 /* =================================================================
    STATE
 ================================================================= */
@@ -33,10 +78,14 @@ const SERVICE_FEE = 1000; // IDR
 const cart = new Map();
 
 /**
- * orderHistory — Array of plain-object order snapshots
+ * orderHistory — Array of plain-object order snapshots, pre-populated
+ * from localStorage so data survives page reloads and logout cycles.
  * Each entry: { id, date, items: [{name, qty, lineTotal}], total }
+ *
+ * Initialised via loadHistory() — defined above — so the array already
+ * contains any previously saved orders the moment the module loads.
  */
-const orderHistory = [];
+const orderHistory = loadHistory();
 
 /** Currently active category filter */
 let activeFilter = 'all';
@@ -151,6 +200,10 @@ function initNavigation() {
         confirmLabel: 'Yes, Logout',
         confirmStyle: 'danger',
         onConfirm: () => {
+          // Intentionally DO NOT call localStorage.removeItem(STORAGE_KEY) here.
+          // Order history must survive the logout → login cycle so the user
+          // can review past orders after signing back in.
+          // Only the in-memory cart (a Map) is abandoned — it was never persisted.
           window.location.href = 'login.html';
         },
       });
@@ -656,6 +709,10 @@ function confirmOrder(snapshot) {
   appendToHistory(snapshot);
   updateProfileStats();
 
+  // Persist the updated orderHistory array to localStorage immediately
+  // so the new order survives page reloads and future logout → login cycles.
+  saveHistory();
+
   // Clear cart state
   cart.clear();
 
@@ -769,6 +826,71 @@ function showToast() {
 }
 
 /* =================================================================
+   LOCALSTORAGE — UI RESTORATION
+================================================================= */
+
+/**
+ * Renders all orders already in the in-memory orderHistory array into
+ * the History section UI. Called once on DOMContentLoaded so that orders
+ * loaded from localStorage appear immediately without re-confirming a checkout.
+ *
+ * Strategy: iterate the loaded array in chronological order (oldest first)
+ * and call the existing appendToHistory() DOM builder for each entry.
+ * appendToHistory() prepends each card, so the final result is newest-first.
+ *
+ * Note: appendToHistory() also calls orderHistory.push(), which would
+ * duplicate entries. To avoid that we use a private renderer that only
+ * builds the DOM card without mutating the array.
+ */
+function restoreHistoryUI() {
+  if (orderHistory.length === 0) return;
+
+  // Hide empty-state placeholder — there IS history to show
+  historyEmpty?.setAttribute('hidden', '');
+
+  // Update the count badge to reflect the loaded length
+  if (historyCount) {
+    historyCount.textContent =
+      `${orderHistory.length} order${orderHistory.length !== 1 ? 's' : ''}`;
+  }
+
+  // Render each snapshot using the same card template as appendToHistory(),
+  // but WITHOUT pushing to the array (it's already populated by loadHistory()).
+  // We insert oldest→newest so prepending produces newest-at-top.
+  orderHistory.forEach(snapshot => {
+    const card = document.createElement('div');
+    card.classList.add('history-card');
+
+    const itemRows = snapshot.items
+      .map(i =>
+        `<li><span>${escapeHtml(i.name)} ×${i.qty}</span><span>${formatRupiah(i.lineTotal)}</span></li>`
+      )
+      .join('');
+
+    card.innerHTML = `
+      <div class="history-card__header">
+        <div>
+          <p class="history-card__id">Order #${snapshot.id}</p>
+          <p class="history-card__date">${snapshot.date}</p>
+        </div>
+        <span class="history-status history-status--done">✅ Completed</span>
+      </div>
+      <ul class="history-card__items">${itemRows}</ul>
+      <div class="history-card__total">
+        <span>Total Paid</span>
+        <span>${formatRupiah(snapshot.total)}</span>
+      </div>
+    `;
+
+    // Prepend so that after the full loop the newest entry is on top
+    historyList?.insertBefore(card, historyList.firstChild);
+  });
+
+  // Sync profile stats from the restored data
+  updateProfileStats();
+}
+
+/* =================================================================
    INITIALISATION
 ================================================================= */
 function init() {
@@ -787,6 +909,10 @@ function init() {
 
   // Set correct item count on load
   applyFilter('all');
+
+  // Restore persisted order history from localStorage into the History UI
+  // and sync Profile stats. Must run after DOM references are ready.
+  restoreHistoryUI();
 }
 
 document.addEventListener('DOMContentLoaded', init);
