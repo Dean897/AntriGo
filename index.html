@@ -1,0 +1,1319 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AntriGo — Campus Canteen Pre-Order Dashboard</title>
+
+  <style>
+    /* =========================================================
+       RESET & BASE
+    ========================================================= */
+    *, *::before, *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    :root {
+      /* Brand palette */
+      --primary:        #FF6B6B;   /* coral red */
+      --primary-dark:   #e85555;   /* hover / active state */
+      --accent:         #FCA311;   /* amber */
+      --accent-dark:    #e0920a;
+
+      /* Neutrals */
+      --bg:             #F8F9FA;   /* page background */
+      --surface:        #FFFFFF;   /* card / panel background */
+      --sidebar-bg:     #1E2139;   /* dark sidebar */
+      --sidebar-text:   #A8AECE;
+      --sidebar-active: #FFFFFF;
+
+      /* Text */
+      --text-primary:   #1A1A2E;   /* dark navy — WCAG AA on #FFF */
+      --text-secondary: #5A5A7A;
+      --text-muted:     #8888A8;
+
+      /* Structural */
+      --sidebar-w:      220px;
+      --cart-w:         300px;
+      --header-h:       68px;
+      --radius:         16px;
+      --shadow:         0 4px 18px rgba(0, 0, 0, 0.08);
+      --shadow-card:    0 2px 12px rgba(0, 0, 0, 0.07);
+
+      /* Typography */
+      --font: -apple-system, "Segoe UI", system-ui, Roboto, sans-serif;
+    }
+
+    html, body {
+      height: 100%;
+      font-family: var(--font);
+      font-size: 15px;
+      background: var(--bg);
+      color: var(--text-primary);
+    }
+
+    /* =========================================================
+       APP SHELL — three-column layout
+       [Sidebar | Main Content | Cart Panel]
+    ========================================================= */
+    .app-shell {
+      display: grid;
+      grid-template-columns: var(--sidebar-w) 1fr var(--cart-w);
+      grid-template-rows: var(--header-h) 1fr;
+      grid-template-areas:
+        "sidebar header  header"
+        "sidebar content cart";
+      min-height: 100vh;
+    }
+
+    /* =========================================================
+       SIDEBAR NAVIGATION
+    ========================================================= */
+    .sidebar {
+      grid-area: sidebar;
+      background: var(--sidebar-bg);
+      display: flex;
+      flex-direction: column;
+      padding: 0;
+      /* Sidebar spans full height — sticky so it doesn't scroll */
+      position: sticky;
+      top: 0;
+      height: 100vh;
+      overflow-y: auto;
+    }
+
+    /* Brand logo area */
+    .sidebar__brand {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 22px 24px 18px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+    }
+
+    /* Coral dot as a simple brand mark */
+    .sidebar__brand-dot {
+      width: 32px;
+      height: 32px;
+      border-radius: 10px;
+      background: var(--primary);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+
+    .sidebar__brand-dot span {
+      color: #fff;
+      font-size: 16px;
+      font-weight: 800;
+      line-height: 1;
+    }
+
+    .sidebar__brand-name {
+      color: var(--sidebar-active);
+      font-size: 18px;
+      font-weight: 700;
+      letter-spacing: -0.3px;
+    }
+
+    .sidebar__brand-name em {
+      font-style: normal;
+      color: var(--primary);
+    }
+
+    /* Navigation section label */
+    .sidebar__section-label {
+      padding: 24px 24px 8px;
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 1.2px;
+      text-transform: uppercase;
+      color: var(--text-muted);
+    }
+
+    /* Nav list */
+    .sidebar__nav {
+      list-style: none;
+      padding: 0 12px;
+    }
+
+    .sidebar__nav li + li {
+      margin-top: 2px;
+    }
+
+    .sidebar__nav a {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 11px 14px;
+      border-radius: 10px;
+      color: var(--sidebar-text);
+      text-decoration: none;
+      font-size: 14px;
+      font-weight: 500;
+      transition: background 0.15s, color 0.15s;
+    }
+
+    /* Nav icon placeholder — a small colored square */
+    .nav-icon {
+      width: 18px;
+      height: 18px;
+      border-radius: 5px;
+      background: currentColor;
+      opacity: 0.35;
+      flex-shrink: 0;
+    }
+
+    /* Active nav item */
+    .sidebar__nav a.active,
+    .sidebar__nav a:hover {
+      background: rgba(255, 255, 255, 0.08);
+      color: var(--sidebar-active);
+    }
+
+    .sidebar__nav a.active .nav-icon {
+      background: var(--primary);
+      opacity: 1;
+    }
+
+    /* Sidebar footer — user quick info */
+    .sidebar__footer {
+      margin-top: auto;
+      padding: 16px 20px;
+      border-top: 1px solid rgba(255, 255, 255, 0.07);
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .sidebar__avatar-sm {
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      background: var(--primary);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #fff;
+      font-weight: 700;
+      font-size: 14px;
+      flex-shrink: 0;
+    }
+
+    .sidebar__user-info small {
+      display: block;
+      font-size: 11px;
+      color: var(--text-muted);
+    }
+
+    .sidebar__user-info strong {
+      display: block;
+      font-size: 13px;
+      color: var(--sidebar-active);
+      font-weight: 600;
+    }
+
+    /* =========================================================
+       TOP HEADER
+    ========================================================= */
+    .header {
+      grid-area: header;
+      background: var(--surface);
+      border-bottom: 1px solid #EAEAF0;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 28px;
+      gap: 16px;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      box-shadow: 0 1px 6px rgba(0, 0, 0, 0.05);
+    }
+
+    /* Page title in header */
+    .header__title {
+      font-size: 18px;
+      font-weight: 700;
+      color: var(--text-primary);
+      white-space: nowrap;
+    }
+
+    .header__title span {
+      color: var(--primary);
+    }
+
+    /* Search bar */
+    .header__search {
+      flex: 1;
+      max-width: 420px;
+      position: relative;
+    }
+
+    /* CSS-only search icon using a Unicode character */
+    .header__search::before {
+      content: "⌕";
+      position: absolute;
+      left: 14px;
+      top: 50%;
+      transform: translateY(-50%);
+      color: var(--text-muted);
+      font-size: 18px;
+      pointer-events: none;
+      line-height: 1;
+    }
+
+    .header__search input {
+      width: 100%;
+      padding: 10px 16px 10px 40px;
+      border: 1.5px solid #E4E4EF;
+      border-radius: 12px;
+      background: var(--bg);
+      color: var(--text-primary);
+      font-family: var(--font);
+      font-size: 14px;
+      outline: none;
+      transition: border-color 0.15s;
+    }
+
+    .header__search input::placeholder {
+      color: var(--text-muted);
+    }
+
+    .header__search input:focus {
+      border-color: var(--primary);
+      background: var(--surface);
+    }
+
+    /* Header right actions */
+    .header__actions {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+
+    /* Notification bell — pure CSS badge using ::after */
+    .header__notif {
+      position: relative;
+      width: 38px;
+      height: 38px;
+      border-radius: 10px;
+      background: var(--bg);
+      border: 1.5px solid #E4E4EF;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      color: var(--text-secondary);
+      font-size: 18px;
+      text-decoration: none;
+    }
+
+    .header__notif::after {
+      content: "";
+      position: absolute;
+      top: 6px;
+      right: 7px;
+      width: 8px;
+      height: 8px;
+      background: var(--primary);
+      border-radius: 50%;
+      border: 2px solid var(--surface);
+    }
+
+    /* Profile avatar — circle with initials */
+    .header__avatar {
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, var(--primary) 0%, var(--accent) 100%);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #fff;
+      font-weight: 700;
+      font-size: 14px;
+      cursor: pointer;
+      border: 2.5px solid var(--surface);
+      box-shadow: 0 0 0 2px var(--primary);
+      text-decoration: none;
+    }
+
+    /* =========================================================
+       MAIN CONTENT AREA
+    ========================================================= */
+    .content {
+      grid-area: content;
+      padding: 28px 24px;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 24px;
+    }
+
+    /* ---- Welcome bar ---- */
+    .welcome-bar {
+      background: linear-gradient(120deg, var(--primary) 0%, #ff9a9a 100%);
+      border-radius: var(--radius);
+      padding: 22px 28px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      color: #fff;
+      box-shadow: 0 6px 24px rgba(255, 107, 107, 0.35);
+    }
+
+    .welcome-bar__text h2 {
+      font-size: 20px;
+      font-weight: 700;
+      margin-bottom: 4px;
+    }
+
+    .welcome-bar__text p {
+      font-size: 13px;
+      opacity: 0.88;
+    }
+
+    /* Decorative circle inside welcome bar */
+    .welcome-bar__decor {
+      width: 70px;
+      height: 70px;
+      border-radius: 50%;
+      background: rgba(255, 255, 255, 0.2);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 32px;
+      flex-shrink: 0;
+    }
+
+    /* ---- Section header ---- */
+    .section-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .section-header h3 {
+      font-size: 17px;
+      font-weight: 700;
+      color: var(--text-primary);
+    }
+
+    .section-header a {
+      font-size: 13px;
+      color: var(--primary);
+      text-decoration: none;
+      font-weight: 500;
+    }
+
+    .section-header a:hover {
+      text-decoration: underline;
+    }
+
+    /* =========================================================
+       QUICK-FILTER CATEGORY CHIPS
+    ========================================================= */
+    .filter-bar {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    /* Each filter chip is a pure-CSS <label>+<input type="radio"> toggle */
+    .filter-bar input[type="radio"] {
+      /* Visually hide the radio; keep it accessible */
+      position: absolute;
+      opacity: 0;
+      width: 0;
+      height: 0;
+    }
+
+    .filter-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      padding: 9px 18px;
+      border-radius: 50px;
+      border: 1.5px solid #E4E4EF;
+      background: var(--surface);
+      color: var(--text-secondary);
+      font-family: var(--font);
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.15s, color 0.15s, border-color 0.15s;
+      user-select: none;
+    }
+
+    /* Chip emoji/icon dot */
+    .chip-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: currentColor;
+      opacity: 0.5;
+    }
+
+    /* Checked state — activate chip */
+    .filter-bar input[type="radio"]:checked + .filter-chip {
+      background: var(--primary);
+      color: #fff;
+      border-color: var(--primary);
+    }
+
+    .filter-bar input[type="radio"]:checked + .filter-chip .chip-dot {
+      background: #fff;
+      opacity: 1;
+    }
+
+    /* Focus-visible ring for keyboard navigation */
+    .filter-bar input[type="radio"]:focus-visible + .filter-chip {
+      outline: 2px solid var(--primary);
+      outline-offset: 2px;
+    }
+
+    /* =========================================================
+       FOOD CARDS — CSS GRID
+    ========================================================= */
+    .food-grid {
+      display: grid;
+      /* Responsive columns: min 200px, fill available space */
+      grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+      gap: 18px;
+    }
+
+    /* Individual card */
+    .food-card {
+      background: var(--surface);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow-card);
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      transition: transform 0.18s, box-shadow 0.18s;
+    }
+
+    .food-card:hover {
+      transform: translateY(-3px);
+      box-shadow: 0 8px 28px rgba(0, 0, 0, 0.11);
+    }
+
+    /* Colored image placeholder */
+    .food-card__img {
+      width: 100%;
+      aspect-ratio: 4 / 3;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 42px;
+      flex-shrink: 0;
+    }
+
+    /* Six distinct placeholder colors — one per card via modifier classes */
+    .food-card__img--red    { background: #FFE5E5; }
+    .food-card__img--amber  { background: #FFF3DC; }
+    .food-card__img--green  { background: #E5F5E8; }
+    .food-card__img--blue   { background: #E5EDFF; }
+    .food-card__img--purple { background: #F0E5FF; }
+    .food-card__img--teal   { background: #E5F7F5; }
+
+    /* Card body */
+    .food-card__body {
+      padding: 14px 16px 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      flex: 1;
+    }
+
+    /* Category tag */
+    .food-card__tag {
+      display: inline-block;
+      padding: 2px 9px;
+      border-radius: 50px;
+      font-size: 10px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.6px;
+      background: #FFF0F0;
+      color: var(--primary);
+      width: fit-content;
+    }
+
+    .food-card__tag--snack  { background: #FFF8E5; color: #C97D00; }
+    .food-card__tag--drink  { background: #E8F3FF; color: #2B6CB0; }
+    .food-card__tag--meal   { background: #FFF0F0; color: var(--primary); }
+
+    /* Food name */
+    .food-card__name {
+      font-size: 15px;
+      font-weight: 700;
+      color: var(--text-primary);
+      line-height: 1.3;
+    }
+
+    /* Price row */
+    .food-card__footer {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-top: auto;
+    }
+
+    .food-card__price {
+      font-size: 16px;
+      font-weight: 800;
+      color: var(--primary);
+    }
+
+    /* 'Add' button — pure CSS, no JS needed for visual */
+    .btn-add {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 32px;
+      height: 32px;
+      border-radius: 10px;
+      background: var(--primary);
+      color: #fff;
+      font-size: 20px;
+      font-weight: 300;
+      line-height: 1;
+      border: none;
+      cursor: pointer;
+      text-decoration: none;
+      transition: background 0.15s, transform 0.1s;
+      /* Accessible focus ring */
+      outline-offset: 2px;
+    }
+
+    .btn-add:hover {
+      background: var(--primary-dark);
+      transform: scale(1.08);
+    }
+
+    .btn-add:focus-visible {
+      outline: 2px solid var(--primary);
+    }
+
+    /* =========================================================
+       RIGHT PANEL — ORDER SUMMARY / CART
+    ========================================================= */
+    .cart-panel {
+      grid-area: cart;
+      background: var(--surface);
+      border-left: 1px solid #EAEAF0;
+      display: flex;
+      flex-direction: column;
+      padding: 0;
+      /* Sticky so it never scrolls away */
+      position: sticky;
+      top: var(--header-h);
+      height: calc(100vh - var(--header-h));
+      overflow-y: auto;
+    }
+
+    /* Panel header */
+    .cart-panel__header {
+      padding: 22px 22px 16px;
+      border-bottom: 1px solid #EAEAF0;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .cart-panel__title {
+      font-size: 16px;
+      font-weight: 700;
+      color: var(--text-primary);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    /* Cart item count badge */
+    .cart-badge {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 22px;
+      height: 22px;
+      border-radius: 50%;
+      background: var(--primary);
+      color: #fff;
+      font-size: 11px;
+      font-weight: 700;
+    }
+
+    .cart-panel__clear {
+      font-size: 12px;
+      color: var(--text-muted);
+      text-decoration: none;
+      font-weight: 500;
+    }
+
+    .cart-panel__clear:hover {
+      color: var(--primary);
+    }
+
+    /* Cart item list */
+    .cart-items {
+      flex: 1;
+      padding: 16px 22px;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+
+    /* Individual cart item row */
+    .cart-item {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    /* Colored thumbnail */
+    .cart-item__thumb {
+      width: 48px;
+      height: 48px;
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 22px;
+      flex-shrink: 0;
+    }
+
+    .cart-item__thumb--red   { background: #FFE5E5; }
+    .cart-item__thumb--amber { background: #FFF3DC; }
+
+    .cart-item__info {
+      flex: 1;
+      min-width: 0;
+    }
+
+    .cart-item__name {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text-primary);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .cart-item__qty {
+      font-size: 12px;
+      color: var(--text-muted);
+      margin-top: 2px;
+    }
+
+    .cart-item__price {
+      font-size: 14px;
+      font-weight: 700;
+      color: var(--text-primary);
+      flex-shrink: 0;
+    }
+
+    /* Quantity control display — static for this mock */
+    .cart-item__controls {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-top: 6px;
+    }
+
+    .qty-btn {
+      width: 22px;
+      height: 22px;
+      border-radius: 6px;
+      border: 1.5px solid #E4E4EF;
+      background: var(--bg);
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 14px;
+      color: var(--text-secondary);
+      text-decoration: none;
+      font-weight: 700;
+      cursor: pointer;
+      line-height: 1;
+    }
+
+    .qty-btn:hover {
+      border-color: var(--primary);
+      color: var(--primary);
+    }
+
+    .qty-value {
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--text-primary);
+      min-width: 16px;
+      text-align: center;
+    }
+
+    /* Divider */
+    .cart-divider {
+      height: 1px;
+      background: #EAEAF0;
+      margin: 0 22px;
+    }
+
+    /* Order totals section */
+    .cart-totals {
+      padding: 16px 22px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .cart-totals__row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 13px;
+      color: var(--text-secondary);
+    }
+
+    .cart-totals__row--subtotal {
+      font-weight: 600;
+      color: var(--text-primary);
+    }
+
+    .cart-totals__row--total {
+      font-size: 16px;
+      font-weight: 800;
+      color: var(--text-primary);
+      margin-top: 4px;
+    }
+
+    .cart-totals__value--accent {
+      color: var(--primary);
+    }
+
+    .cart-totals__row--total .cart-totals__value--accent {
+      font-size: 18px;
+    }
+
+    /* Promo code field */
+    .promo-row {
+      display: flex;
+      gap: 8px;
+      margin-top: 4px;
+    }
+
+    .promo-input {
+      flex: 1;
+      padding: 9px 12px;
+      border: 1.5px solid #E4E4EF;
+      border-radius: 10px;
+      font-family: var(--font);
+      font-size: 13px;
+      color: var(--text-primary);
+      background: var(--bg);
+      outline: none;
+    }
+
+    .promo-input::placeholder { color: var(--text-muted); }
+
+    .promo-input:focus { border-color: var(--accent); }
+
+    .btn-promo {
+      padding: 9px 14px;
+      background: var(--accent);
+      color: #fff;
+      border: none;
+      border-radius: 10px;
+      font-family: var(--font);
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      text-decoration: none;
+      display: inline-flex;
+      align-items: center;
+    }
+
+    .btn-promo:hover { background: var(--accent-dark); }
+
+    /* Checkout button */
+    .cart-panel__checkout {
+      padding: 16px 22px 24px;
+    }
+
+    .btn-checkout {
+      display: block;
+      width: 100%;
+      padding: 14px 0;
+      background: var(--primary);
+      color: #fff;
+      border: none;
+      border-radius: var(--radius);
+      font-family: var(--font);
+      font-size: 15px;
+      font-weight: 700;
+      text-align: center;
+      cursor: pointer;
+      text-decoration: none;
+      box-shadow: 0 6px 20px rgba(255, 107, 107, 0.38);
+      transition: background 0.15s, transform 0.1s, box-shadow 0.15s;
+    }
+
+    .btn-checkout:hover {
+      background: var(--primary-dark);
+      transform: translateY(-1px);
+      box-shadow: 0 8px 24px rgba(255, 107, 107, 0.48);
+    }
+
+    .btn-checkout:focus-visible {
+      outline: 3px solid var(--primary);
+      outline-offset: 3px;
+    }
+
+    /* Secure payment note */
+    .checkout-note {
+      text-align: center;
+      font-size: 11px;
+      color: var(--text-muted);
+      margin-top: 10px;
+    }
+
+    /* =========================================================
+       SKIP LINK — accessibility (keyboard users)
+    ========================================================= */
+    .skip-link {
+      position: absolute;
+      top: -40px;
+      left: 16px;
+      background: var(--primary);
+      color: #fff;
+      padding: 8px 16px;
+      border-radius: 8px;
+      font-weight: 600;
+      font-size: 14px;
+      text-decoration: none;
+      z-index: 9999;
+      transition: top 0.15s;
+    }
+
+    .skip-link:focus {
+      top: 8px;
+    }
+
+  </style>
+</head>
+
+<body>
+
+  <!-- Accessibility: skip to main content for keyboard/screen-reader users -->
+  <a class="skip-link" href="#main-content">Skip to main content</a>
+
+  <!-- =====================================================
+       APP SHELL — grid wrapper
+  ===================================================== -->
+  <div class="app-shell">
+
+    <!-- =================================================
+         SIDEBAR NAVIGATION
+    ================================================= -->
+    <aside class="sidebar" aria-label="Main navigation">
+
+      <!-- Brand / Logo -->
+      <div class="sidebar__brand">
+        <div class="sidebar__brand-dot" aria-hidden="true">
+          <span>A</span>
+        </div>
+        <span class="sidebar__brand-name">Antri<em>Go</em></span>
+      </div>
+
+      <!-- Navigation section -->
+      <p class="sidebar__section-label">Menu</p>
+      <nav>
+        <ul class="sidebar__nav" role="list">
+
+          <!-- Home — currently active page -->
+          <li>
+            <a href="#" class="active" aria-current="page">
+              <span class="nav-icon" aria-hidden="true"></span>
+              Home
+            </a>
+          </li>
+
+          <!-- Menu -->
+          <li>
+            <a href="#">
+              <span class="nav-icon" aria-hidden="true"></span>
+              Menu
+            </a>
+          </li>
+
+          <!-- Order History -->
+          <li>
+            <a href="#">
+              <span class="nav-icon" aria-hidden="true"></span>
+              History
+            </a>
+          </li>
+
+          <!-- Settings -->
+          <li>
+            <a href="#">
+              <span class="nav-icon" aria-hidden="true"></span>
+              Settings
+            </a>
+          </li>
+
+        </ul>
+      </nav>
+
+      <!-- Sidebar section: Account -->
+      <p class="sidebar__section-label">Account</p>
+      <nav>
+        <ul class="sidebar__nav" role="list">
+          <li>
+            <a href="#">
+              <span class="nav-icon" aria-hidden="true"></span>
+              Profile
+            </a>
+          </li>
+          <li>
+            <a href="#">
+              <span class="nav-icon" aria-hidden="true"></span>
+              Logout
+            </a>
+          </li>
+        </ul>
+      </nav>
+
+      <!-- Sidebar footer: logged-in user info -->
+      <div class="sidebar__footer" aria-label="Logged in user">
+        <div class="sidebar__avatar-sm" aria-hidden="true">RD</div>
+        <div class="sidebar__user-info">
+          <strong>Rafi Darmawan</strong>
+          <small>Student · ID 2024083</small>
+        </div>
+      </div>
+
+    </aside><!-- /sidebar -->
+
+    <!-- =================================================
+         TOP HEADER
+    ================================================= -->
+    <header class="header" role="banner">
+
+      <!-- Page title -->
+      <h1 class="header__title">
+        Order <span>Today</span>
+      </h1>
+
+      <!-- Search bar -->
+      <div class="header__search" role="search">
+        <label for="search-input" class="sr-only">Search food or drinks</label>
+        <!-- Visually-hidden label for screen readers -->
+        <style>.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}</style>
+        <input
+          id="search-input"
+          type="search"
+          placeholder="Search food, drinks…"
+          aria-label="Search food or drinks"
+        />
+      </div>
+
+      <!-- Right-side header actions -->
+      <div class="header__actions">
+
+        <!-- Notification bell — anchor styled as icon button -->
+        <a href="#" class="header__notif" aria-label="Notifications (3 new)" title="Notifications">
+          🔔
+        </a>
+
+        <!-- User profile avatar -->
+        <a href="#" class="header__avatar" aria-label="User profile: Rafi Darmawan" title="My Profile">
+          RD
+        </a>
+
+      </div>
+
+    </header><!-- /header -->
+
+    <!-- =================================================
+         MAIN CONTENT
+    ================================================= -->
+    <main class="content" id="main-content" aria-label="Main content">
+
+      <!-- Welcome banner -->
+      <section class="welcome-bar" aria-label="Welcome message">
+        <div class="welcome-bar__text">
+          <h2>Good morning, Rafi! 👋</h2>
+          <p>Ready to pre-order your campus meal? Canteen opens at 11:00 AM.</p>
+        </div>
+        <div class="welcome-bar__decor" aria-hidden="true">🍱</div>
+      </section>
+
+      <!-- -----------------------------------------------
+           QUICK FILTER — Category chips
+      ----------------------------------------------- -->
+      <section aria-labelledby="filter-heading">
+        <div class="section-header">
+          <h3 id="filter-heading">Categories</h3>
+        </div>
+
+        <!-- Radio group: only one category active at a time -->
+        <!-- Using CSS :checked selector to toggle chip appearance without JS -->
+        <div class="filter-bar" role="radiogroup" aria-labelledby="filter-heading" style="margin-top:12px;">
+
+          <!-- All -->
+          <input type="radio" name="category" id="cat-all" checked />
+          <label class="filter-chip" for="cat-all">
+            <span class="chip-dot" aria-hidden="true"></span>
+            All Items
+          </label>
+
+          <!-- Meals -->
+          <input type="radio" name="category" id="cat-meals" />
+          <label class="filter-chip" for="cat-meals">
+            <span class="chip-dot" aria-hidden="true"></span>
+            🍛 Meals
+          </label>
+
+          <!-- Snacks -->
+          <input type="radio" name="category" id="cat-snacks" />
+          <label class="filter-chip" for="cat-snacks">
+            <span class="chip-dot" aria-hidden="true"></span>
+            🍟 Snacks
+          </label>
+
+          <!-- Drinks -->
+          <input type="radio" name="category" id="cat-drinks" />
+          <label class="filter-chip" for="cat-drinks">
+            <span class="chip-dot" aria-hidden="true"></span>
+            🧋 Drinks
+          </label>
+
+          <!-- Desserts -->
+          <input type="radio" name="category" id="cat-desserts" />
+          <label class="filter-chip" for="cat-desserts">
+            <span class="chip-dot" aria-hidden="true"></span>
+            🍨 Desserts
+          </label>
+
+        </div>
+      </section>
+
+      <!-- -----------------------------------------------
+           FOOD CARDS — CSS Grid (6 items)
+      ----------------------------------------------- -->
+      <section aria-labelledby="menu-heading">
+        <div class="section-header">
+          <h3 id="menu-heading">Today's Menu</h3>
+          <a href="#">View all →</a>
+        </div>
+
+        <!-- CSS Grid: auto-fill columns, min 200px each -->
+        <div class="food-grid" style="margin-top:14px;" role="list" aria-label="Food items">
+
+          <!-- ---- Card 1: Nasi Ayam Geprek ---- -->
+          <article class="food-card" role="listitem">
+            <!-- Colored image placeholder with food emoji -->
+            <div class="food-card__img food-card__img--red" aria-hidden="true">🍗</div>
+            <div class="food-card__body">
+              <span class="food-card__tag food-card__tag--meal">Meal</span>
+              <h4 class="food-card__name">Nasi Ayam Geprek</h4>
+              <div class="food-card__footer">
+                <span class="food-card__price">Rp 18.000</span>
+                <!-- 'Add' button — accessible label -->
+                <a href="#cart" class="btn-add" aria-label="Add Nasi Ayam Geprek to cart">+</a>
+              </div>
+            </div>
+          </article>
+
+          <!-- ---- Card 2: Mie Goreng Spesial ---- -->
+          <article class="food-card" role="listitem">
+            <div class="food-card__img food-card__img--amber" aria-hidden="true">🍜</div>
+            <div class="food-card__body">
+              <span class="food-card__tag food-card__tag--meal">Meal</span>
+              <h4 class="food-card__name">Mie Goreng Spesial</h4>
+              <div class="food-card__footer">
+                <span class="food-card__price">Rp 15.000</span>
+                <a href="#cart" class="btn-add" aria-label="Add Mie Goreng Spesial to cart">+</a>
+              </div>
+            </div>
+          </article>
+
+          <!-- ---- Card 3: Kentang Goreng ---- -->
+          <article class="food-card" role="listitem">
+            <div class="food-card__img food-card__img--green" aria-hidden="true">🍟</div>
+            <div class="food-card__body">
+              <span class="food-card__tag food-card__tag--snack">Snack</span>
+              <h4 class="food-card__name">Kentang Goreng</h4>
+              <div class="food-card__footer">
+                <span class="food-card__price">Rp 9.000</span>
+                <a href="#cart" class="btn-add" aria-label="Add Kentang Goreng to cart">+</a>
+              </div>
+            </div>
+          </article>
+
+          <!-- ---- Card 4: Es Teh Manis ---- -->
+          <article class="food-card" role="listitem">
+            <div class="food-card__img food-card__img--blue" aria-hidden="true">🧊</div>
+            <div class="food-card__body">
+              <span class="food-card__tag food-card__tag--drink">Drink</span>
+              <h4 class="food-card__name">Es Teh Manis</h4>
+              <div class="food-card__footer">
+                <span class="food-card__price">Rp 5.000</span>
+                <a href="#cart" class="btn-add" aria-label="Add Es Teh Manis to cart">+</a>
+              </div>
+            </div>
+          </article>
+
+          <!-- ---- Card 5: Bakso Kuah ---- -->
+          <article class="food-card" role="listitem">
+            <div class="food-card__img food-card__img--purple" aria-hidden="true">🍲</div>
+            <div class="food-card__body">
+              <span class="food-card__tag food-card__tag--meal">Meal</span>
+              <h4 class="food-card__name">Bakso Kuah</h4>
+              <div class="food-card__footer">
+                <span class="food-card__price">Rp 16.000</span>
+                <a href="#cart" class="btn-add" aria-label="Add Bakso Kuah to cart">+</a>
+              </div>
+            </div>
+          </article>
+
+          <!-- ---- Card 6: Boba Milk Tea ---- -->
+          <article class="food-card" role="listitem">
+            <div class="food-card__img food-card__img--teal" aria-hidden="true">🧋</div>
+            <div class="food-card__body">
+              <span class="food-card__tag food-card__tag--drink">Drink</span>
+              <h4 class="food-card__name">Boba Milk Tea</h4>
+              <div class="food-card__footer">
+                <span class="food-card__price">Rp 12.000</span>
+                <a href="#cart" class="btn-add" aria-label="Add Boba Milk Tea to cart">+</a>
+              </div>
+            </div>
+          </article>
+
+        </div><!-- /food-grid -->
+      </section>
+
+    </main><!-- /content -->
+
+    <!-- =================================================
+         RIGHT PANEL — ORDER SUMMARY / CART
+    ================================================= -->
+    <aside class="cart-panel" id="cart" aria-label="Order summary">
+
+      <!-- Panel header -->
+      <div class="cart-panel__header">
+        <h2 class="cart-panel__title">
+          My Order
+          <!-- Badge showing item count -->
+          <span class="cart-badge" aria-label="2 items in cart">2</span>
+        </h2>
+        <a href="#" class="cart-panel__clear" aria-label="Clear all items from cart">Clear all</a>
+      </div>
+
+      <!-- ---- Cart Items (2 mock selections) ---- -->
+      <div class="cart-items" aria-label="Items in your order">
+
+        <!-- Cart item 1: Nasi Ayam Geprek -->
+        <div class="cart-item">
+          <div class="cart-item__thumb cart-item__thumb--red" aria-hidden="true">🍗</div>
+          <div class="cart-item__info">
+            <p class="cart-item__name">Nasi Ayam Geprek</p>
+            <!-- Quantity controls — visually static in this mock -->
+            <div class="cart-item__controls" aria-label="Quantity for Nasi Ayam Geprek">
+              <a href="#" class="qty-btn" aria-label="Decrease quantity">−</a>
+              <span class="qty-value" aria-live="polite">1</span>
+              <a href="#" class="qty-btn" aria-label="Increase quantity">+</a>
+            </div>
+          </div>
+          <span class="cart-item__price" aria-label="Price: Rp 18,000">Rp 18.000</span>
+        </div>
+
+        <!-- Cart item 2: Boba Milk Tea -->
+        <div class="cart-item">
+          <div class="cart-item__thumb cart-item__thumb--amber" aria-hidden="true">🧋</div>
+          <div class="cart-item__info">
+            <p class="cart-item__name">Boba Milk Tea</p>
+            <div class="cart-item__controls" aria-label="Quantity for Boba Milk Tea">
+              <a href="#" class="qty-btn" aria-label="Decrease quantity">−</a>
+              <span class="qty-value" aria-live="polite">2</span>
+              <a href="#" class="qty-btn" aria-label="Increase quantity">+</a>
+            </div>
+          </div>
+          <span class="cart-item__price" aria-label="Price: Rp 24,000">Rp 24.000</span>
+        </div>
+
+      </div><!-- /cart-items -->
+
+      <div class="cart-divider" role="separator"></div>
+
+      <!-- ---- Order Totals ---- -->
+      <div class="cart-totals">
+
+        <!-- Subtotal -->
+        <div class="cart-totals__row cart-totals__row--subtotal">
+          <span>Subtotal (3 items)</span>
+          <span>Rp 42.000</span>
+        </div>
+
+        <!-- Service fee -->
+        <div class="cart-totals__row">
+          <span>Service fee</span>
+          <span>Rp 1.000</span>
+        </div>
+
+        <!-- Discount -->
+        <div class="cart-totals__row">
+          <span>Discount</span>
+          <span style="color:#22a85a; font-weight:600;">− Rp 2.000</span>
+        </div>
+
+        <!-- Divider line within totals -->
+        <div style="height:1px;background:#EAEAF0;margin:2px 0;"></div>
+
+        <!-- Grand total -->
+        <div class="cart-totals__row cart-totals__row--total">
+          <span>Total</span>
+          <span class="cart-totals__value--accent">Rp 41.000</span>
+        </div>
+
+      </div><!-- /cart-totals -->
+
+      <div class="cart-divider" role="separator"></div>
+
+      <!-- ---- Promo code input ---- -->
+      <div class="cart-totals" style="padding-top:14px;padding-bottom:14px;">
+        <p style="font-size:12px;font-weight:600;color:var(--text-secondary);margin-bottom:8px;">
+          Promo Code
+        </p>
+        <div class="promo-row">
+          <input
+            class="promo-input"
+            type="text"
+            placeholder="Enter code…"
+            aria-label="Promo code"
+          />
+          <a href="#" class="btn-promo">Apply</a>
+        </div>
+      </div>
+
+      <div class="cart-divider" role="separator"></div>
+
+      <!-- ---- Checkout button ---- -->
+      <div class="cart-panel__checkout">
+        <a href="#" class="btn-checkout" role="button" aria-label="Proceed to checkout, total Rp 41,000">
+          Checkout — Rp 41.000
+        </a>
+        <p class="checkout-note">🔒 Secure canteen payment gateway</p>
+      </div>
+
+    </aside><!-- /cart-panel -->
+
+  </div><!-- /app-shell -->
+
+</body>
+</html>
