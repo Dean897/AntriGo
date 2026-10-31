@@ -1,345 +1,358 @@
 /**
  * AntriGo — Campus Canteen Pre-Order Dashboard
- * js/script.js
+ * js/script.js  (v3)
  *
- * Responsibilities:
- *  1. Dynamic greeting based on current time
- *  2. Sidebar navigation — section switching
- *  3. Category filter chips — show/hide food cards
- *  4. Search bar — real-time card filtering
- *  5. Cart logic — add / remove / update quantities, auto-calculate totals
- *  6. Checkout modal — receipt generation
- *  7. Success toast — post-order confirmation
+ * Modules:
+ *  1. Greeting
+ *  2. Navigation (sidebar section switching)
+ *  3. Category filters + search
+ *  4. Cart — add / remove / clear / totals (NO alert/confirm)
+ *  5. Custom modal system (replaces all alert/confirm)
+ *  6. Order receipt modal
+ *  7. Order history
+ *  8. Profile stats
+ *  9. Bell notification dropdown
+ * 10. Profile avatar click → Profile section
+ * 11. Toast notification
  */
 
 'use strict';
 
 /* =================================================================
-   CONSTANTS & STATE
+   CONSTANTS
 ================================================================= */
+const SERVICE_FEE = 1000; // IDR
 
-/** Service fee charged per order (IDR) */
-const SERVICE_FEE = 1000;
+/* =================================================================
+   STATE
+================================================================= */
 
 /**
  * cart — Map<itemId: string, { name, price, qty, emoji, colorClass }>
- * Using a Map preserves insertion order and gives O(1) lookup by id.
  */
 const cart = new Map();
+
+/**
+ * orderHistory — Array of plain-object order snapshots
+ * Each entry: { id, date, items: [{name, qty, lineTotal}], total }
+ */
+const orderHistory = [];
+
+/** Currently active category filter */
+let activeFilter = 'all';
 
 /* =================================================================
    DOM REFERENCES
 ================================================================= */
-const greetingEl      = document.getElementById('greeting-text');
-const navBtns         = document.querySelectorAll('.nav-btn[data-section]');
-const pageSections    = document.querySelectorAll('.page-section');
-const filterChips     = document.querySelectorAll('.filter-chip');
-const foodCards       = document.querySelectorAll('#food-grid .food-card');
-const emptyState      = document.getElementById('empty-state');
-const visibleCount    = document.getElementById('visible-count');
-const searchInput     = document.getElementById('search-input');
+// Greeting
+const greetingEl = document.getElementById('greeting-text');
 
-const cartItemsEl     = document.getElementById('cart-items');
-const cartEmptyMsg    = document.getElementById('cart-empty-msg');
-const cartCountEl     = document.getElementById('cart-count');
-const subtotalEl      = document.getElementById('subtotal-val');
-const totalEl         = document.getElementById('total-val');
-const clearCartBtn    = document.getElementById('clear-cart-btn');
-const checkoutBtn     = document.getElementById('checkout-btn');
+// Navigation
+const navBtns      = document.querySelectorAll('.nav-btn[data-section]');
+const pageSections = document.querySelectorAll('.page-section');
 
-const modalOverlay    = document.getElementById('modal-overlay');
-const modalBody       = document.getElementById('modal-body');
-const modalClose      = document.getElementById('modal-close');
-const modalConfirm    = document.getElementById('modal-confirm');
-const modalCancel     = document.getElementById('modal-cancel');
+// Filters & grid
+const filterChips  = document.querySelectorAll('.filter-chip');
+const foodCards    = document.querySelectorAll('#food-grid .food-card');
+const emptyState   = document.getElementById('empty-state');
+const visibleCount = document.getElementById('visible-count');
+const searchInput  = document.getElementById('search-input');
 
-const successToast    = document.getElementById('success-toast');
+// Cart
+const cartItemsEl   = document.getElementById('cart-items');
+const cartEmptyMsg  = document.getElementById('cart-empty-msg');
+const cartCountEl   = document.getElementById('cart-count');
+const subtotalEl    = document.getElementById('subtotal-val');
+const totalEl       = document.getElementById('total-val');
+const serviceFeeRow = document.getElementById('service-fee-row');
+const clearCartBtn  = document.getElementById('clear-cart-btn');
+const checkoutBtn   = document.getElementById('checkout-btn');
+
+// Modal (shared overlay)
+const modalOverlay = document.getElementById('modal-overlay');
+const modalTitle   = document.getElementById('modal-title');
+const modalBody    = document.getElementById('modal-body');
+const modalFooter  = document.getElementById('modal-footer');
+const modalClose   = document.getElementById('modal-close');
+
+// History
+const historyList  = document.getElementById('history-list');
+const historyEmpty = document.getElementById('history-empty');
+const historyCount = document.getElementById('history-count');
+
+// Profile stats
+const statOrders = document.getElementById('stat-orders');
+const statSpent  = document.getElementById('stat-spent');
+
+// Bell dropdown
+const bellBtn       = document.getElementById('bell-btn');
+const notifDropdown = document.getElementById('notif-dropdown');
+const markAllRead   = document.getElementById('mark-all-read');
+
+// Profile avatar
+const profileAvatarBtn = document.getElementById('profile-avatar-btn');
+
+// Logout
+const logoutBtn = document.getElementById('logout-btn');
+
+// Toast
+const successToast = document.getElementById('success-toast');
 
 /* =================================================================
-   1. DYNAMIC GREETING
+   1. GREETING — time-aware
 ================================================================= */
-
-/**
- * Returns a time-appropriate greeting phrase.
- * @returns {string}
- */
-function getGreeting() {
-  const hour = new Date().getHours();
-  if (hour < 12) return 'Good morning';
-  if (hour < 17) return 'Good afternoon';
-  return 'Good evening';
-}
-
-/** Sets the hero greeting text using the student's first name. */
 function initGreeting() {
-  if (greetingEl) {
-    greetingEl.textContent = `${getGreeting()}, Deandra! 👋`;
-  }
+  if (!greetingEl) return;
+  const hour = new Date().getHours();
+  const phrase = hour < 12 ? 'Good morning'
+               : hour < 17 ? 'Good afternoon'
+               :              'Good evening';
+  greetingEl.textContent = `${phrase}, Deandra! 👋`;
 }
 
 /* =================================================================
-   2. SIDEBAR NAVIGATION — section switching
+   2. NAVIGATION — sidebar section switching
 ================================================================= */
 
 /**
- * Activates the target section and deactivates all others.
- * @param {string} targetId - value of data-section attribute
+ * Shows the section matching targetId, hides all others.
+ * @param {string} targetId - matches `data-section` attribute values
  */
 function switchSection(targetId) {
-  // Update nav button states
   navBtns.forEach(btn => {
-    const isActive = btn.dataset.section === targetId;
-    btn.classList.toggle('active', isActive);
-    btn.setAttribute('aria-current', isActive ? 'page' : 'false');
+    const active = btn.dataset.section === targetId;
+    btn.classList.toggle('active', active);
+    btn.setAttribute('aria-current', active ? 'page' : 'false');
   });
 
-  // Toggle page sections
   pageSections.forEach(section => {
-    const isTarget = section.id === `section-${targetId}`;
-    if (isTarget) {
+    const match = section.id === `section-${targetId}`;
+    if (match) {
       section.removeAttribute('hidden');
-      section.classList.add('active');
     } else {
       section.setAttribute('hidden', '');
-      section.classList.remove('active');
     }
   });
 }
 
-/** Attaches click handlers to sidebar nav buttons. */
 function initNavigation() {
   navBtns.forEach(btn => {
     btn.addEventListener('click', () => {
-      const sectionId = btn.dataset.section;
-      if (sectionId) switchSection(sectionId);
+      if (btn.dataset.section) switchSection(btn.dataset.section);
     });
   });
 
-  // Logout — simple alert for demo purposes
-  const logoutBtn = document.getElementById('logout-btn');
+  // Logout — custom confirm modal (no native confirm())
   if (logoutBtn) {
     logoutBtn.addEventListener('click', () => {
-      alert('You have been logged out. Goodbye, Deandra!');
+      openConfirmModal({
+        title: '🚪 Logout',
+        message: 'Are you sure you want to <strong>log out</strong>? Any unsaved cart items will be lost.',
+        confirmLabel: 'Yes, Logout',
+        confirmStyle: 'danger',
+        onConfirm: () => {
+          window.location.href = 'login.html';
+        },
+      });
     });
   }
 }
 
 /* =================================================================
-   3. CATEGORY FILTER CHIPS
+   3. CATEGORY FILTERS + SEARCH
 ================================================================= */
 
-/** Currently active filter value */
-let activeFilter = 'all';
-
 /**
- * Filters the food grid based on category.
- * Cards whose data-category doesn't match are hidden via the `hidden` attribute.
+ * Shows/hides food cards based on the active category filter
+ * and the current search term (combined filtering).
  * @param {string} filter - 'all' | 'meal' | 'snack' | 'drink' | 'dessert'
  */
 function applyFilter(filter) {
   activeFilter = filter;
+  const searchTerm = (searchInput?.value ?? '').toLowerCase().trim();
   let shown = 0;
 
   foodCards.forEach(card => {
-    const category = card.dataset.category;
-    const nameText = card.dataset.name?.toLowerCase() ?? '';
-    const searchTerm = searchInput.value.toLowerCase().trim();
+    const matchesFilter = filter === 'all' || card.dataset.category === filter;
+    const matchesSearch = card.dataset.name?.toLowerCase().includes(searchTerm) ?? true;
+    const visible = matchesFilter && matchesSearch;
 
-    const matchesFilter   = filter === 'all' || category === filter;
-    const matchesSearch   = nameText.includes(searchTerm);
-    const shouldShow      = matchesFilter && matchesSearch;
-
-    if (shouldShow) {
-      card.removeAttribute('hidden');
-      shown++;
-    } else {
-      card.setAttribute('hidden', '');
-    }
+    visible ? card.removeAttribute('hidden') : card.setAttribute('hidden', '');
+    if (visible) shown++;
   });
 
-  // Update item count label
   if (visibleCount) {
     visibleCount.textContent = `${shown} item${shown !== 1 ? 's' : ''}`;
   }
 
-  // Toggle empty state message
   if (emptyState) {
-    if (shown === 0) {
-      emptyState.removeAttribute('hidden');
-    } else {
-      emptyState.setAttribute('hidden', '');
-    }
+    shown === 0
+      ? emptyState.removeAttribute('hidden')
+      : emptyState.setAttribute('hidden', '');
   }
 }
 
-/** Attaches click handlers to filter chip buttons. */
 function initFilters() {
   filterChips.forEach(chip => {
     chip.addEventListener('click', () => {
-      // Deactivate previous chip
       filterChips.forEach(c => c.classList.remove('active'));
-      // Activate clicked chip
       chip.classList.add('active');
       applyFilter(chip.dataset.filter);
     });
   });
 }
 
-/* =================================================================
-   4. SEARCH BAR — real-time filtering
-================================================================= */
-
-/** Attaches an input listener to the search field for live filtering. */
 function initSearch() {
-  if (!searchInput) return;
-  searchInput.addEventListener('input', () => {
-    // Re-apply current filter with the new search term
-    applyFilter(activeFilter);
-  });
+  searchInput?.addEventListener('input', () => applyFilter(activeFilter));
 }
 
 /* =================================================================
-   5. CART LOGIC
+   4. CART LOGIC
 ================================================================= */
 
 /**
- * Formats a number as Indonesian Rupiah string.
- * @param {number} amount
- * @returns {string} e.g. "Rp 18.000"
+ * Format as Indonesian Rupiah.
+ * @param {number} n
+ * @returns {string} "Rp 18.000"
  */
-function formatRupiah(amount) {
-  // Use Indonesian locale for dot-separated thousands
-  return 'Rp ' + amount.toLocaleString('id-ID');
+function formatRupiah(n) {
+  return 'Rp ' + n.toLocaleString('id-ID');
 }
 
 /**
- * Adds one unit of an item to the cart, or increments its quantity.
- * @param {string} id   - item's data-id
- * @param {string} name - display name
- * @param {number} price - unit price in IDR
- * @param {string} emoji - emoji character for the thumbnail
- * @param {string} colorClass - CSS class for colored thumbnail background
+ * Escapes HTML special chars to prevent XSS when inserting
+ * data-attribute strings into innerHTML.
+ * @param {string} s
+ * @returns {string}
  */
-function addToCart(id, name, price, emoji, colorClass) {
-  if (cart.has(id)) {
-    cart.get(id).qty += 1;
-  } else {
-    cart.set(id, { name, price, qty: 1, emoji, colorClass });
-  }
-  renderCart();
-  syncCardControls(id);
-  animateCartBadge();
+function escapeHtml(s) {
+  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
 
-/**
- * Removes one unit from the cart. If qty reaches 0, the item is removed.
- * @param {string} id - item's data-id
- */
-function removeFromCart(id) {
-  if (!cart.has(id)) return;
-  const item = cart.get(id);
-  item.qty -= 1;
-  if (item.qty <= 0) {
-    cart.delete(id);
-  }
-  renderCart();
-  syncCardControls(id);
-}
-
-/**
- * Syncs the +/− buttons and quantity display on the food card
- * to reflect the current cart state for that item.
- * @param {string} id - data-id of the card to sync
- */
-function syncCardControls(id) {
-  const card = document.querySelector(`.food-card[data-id="${id}"]`);
-  if (!card) return;
-
-  const minusBtn = card.querySelector('.btn-minus');
-  const qtyVal   = card.querySelector('.card-qty-val');
-  const qty      = cart.has(id) ? cart.get(id).qty : 0;
-
-  if (minusBtn) {
-    if (qty > 0) {
-      minusBtn.removeAttribute('hidden');
-    } else {
-      minusBtn.setAttribute('hidden', '');
-    }
-  }
-
-  if (qtyVal) {
-    qtyVal.textContent = qty > 0 ? qty : '';
-  }
-}
-
-/**
- * Triggers a short CSS scale animation on the cart badge.
- */
-function animateCartBadge() {
-  cartCountEl.classList.remove('bump');
-  // Force reflow to restart animation
-  void cartCountEl.offsetWidth;
-  cartCountEl.classList.add('bump');
-}
-
-/**
- * Calculates cart totals.
- * @returns {{ itemCount: number, subtotal: number, total: number }}
- */
+/** Calculates cart totals. */
 function calcTotals() {
-  let itemCount = 0;
-  let subtotal  = 0;
-
+  let itemCount = 0, subtotal = 0;
   for (const [, item] of cart) {
     itemCount += item.qty;
     subtotal  += item.price * item.qty;
   }
-
   const total = subtotal > 0 ? subtotal + SERVICE_FEE : 0;
   return { itemCount, subtotal, total };
 }
 
 /**
- * Re-renders the entire cart panel based on the current cart Map.
- * This is a full re-render strategy — simple and correct for this scale.
+ * Adds one unit to cart (or increments existing).
+ */
+function addToCart(id, name, price, emoji, colorClass) {
+  if (cart.has(id)) {
+    cart.get(id).qty++;
+  } else {
+    cart.set(id, { name, price, qty: 1, emoji, colorClass });
+  }
+  renderCart();
+  syncCardControls(id);
+  animateBadge();
+}
+
+/**
+ * Removes one unit from cart; deletes entry if qty reaches 0.
+ */
+function removeFromCart(id) {
+  if (!cart.has(id)) return;
+  const item = cart.get(id);
+  item.qty--;
+  if (item.qty <= 0) cart.delete(id);
+  renderCart();
+  syncCardControls(id);
+}
+
+/**
+ * Syncs the food card's +/− buttons and quantity label
+ * to reflect the current cart state. Called after every mutation.
+ * Explicitly hides − and clears qty when count is 0 (BUG FIX).
+ * @param {string} id
+ */
+function syncCardControls(id) {
+  const card    = document.querySelector(`.food-card[data-id="${id}"]`);
+  if (!card) return;
+  const minus   = card.querySelector('.btn-minus');
+  const qtyVal  = card.querySelector('.card-qty-val');
+  const qty     = cart.has(id) ? cart.get(id).qty : 0;
+
+  if (minus) {
+    // Explicitly toggle hidden attribute — fixes state mismatch bug
+    if (qty > 0) {
+      minus.removeAttribute('hidden');
+    } else {
+      minus.setAttribute('hidden', '');
+    }
+  }
+  if (qtyVal) {
+    qtyVal.textContent = qty > 0 ? String(qty) : '';
+  }
+}
+
+/**
+ * Resets ALL food card controls to qty 0 / hidden −.
+ * Must be called on Clear All and after Checkout confirms.
+ */
+function resetAllCardControls() {
+  foodCards.forEach(card => {
+    const minus  = card.querySelector('.btn-minus');
+    const qtyVal = card.querySelector('.card-qty-val');
+    if (minus)  minus.setAttribute('hidden', '');
+    if (qtyVal) qtyVal.textContent = '';
+  });
+}
+
+/** Triggers badge bump animation. */
+function animateBadge() {
+  cartCountEl?.classList.remove('bump');
+  void cartCountEl?.offsetWidth; // force reflow
+  cartCountEl?.classList.add('bump');
+}
+
+/**
+ * Full cart panel re-render.
+ * Also manages visibility of service fee row (hidden when cart empty).
  */
 function renderCart() {
   const { itemCount, subtotal, total } = calcTotals();
 
-  // ---- Update badge ----
-  cartCountEl.textContent = itemCount;
+  // Badge
+  if (cartCountEl) cartCountEl.textContent = itemCount;
 
-  // ---- Update totals ----
-  subtotalEl.textContent = formatRupiah(subtotal);
-  totalEl.textContent    = formatRupiah(total);
+  // Totals
+  if (subtotalEl) subtotalEl.textContent = formatRupiah(subtotal);
+  if (totalEl)    totalEl.textContent    = formatRupiah(total);
 
-  // ---- Toggle empty message ----
-  if (cart.size === 0) {
-    cartEmptyMsg.removeAttribute('hidden');
-    checkoutBtn.disabled = true;
-  } else {
-    cartEmptyMsg.setAttribute('hidden', '');
-    checkoutBtn.disabled = false;
+  // Service fee row — hide when cart empty (BUG FIX: was always shown)
+  if (serviceFeeRow) {
+    cart.size > 0
+      ? serviceFeeRow.removeAttribute('hidden')
+      : serviceFeeRow.setAttribute('hidden', '');
   }
 
-  // ---- Build cart item rows ----
-  // Remove all existing cart item elements (keep the empty msg)
-  const existingItems = cartItemsEl.querySelectorAll('.cart-item');
-  existingItems.forEach(el => el.remove());
+  // Empty message + checkout button state
+  if (cart.size === 0) {
+    cartEmptyMsg?.removeAttribute('hidden');
+    if (checkoutBtn) checkoutBtn.disabled = true;
+  } else {
+    cartEmptyMsg?.setAttribute('hidden', '');
+    if (checkoutBtn) checkoutBtn.disabled = false;
+  }
 
+  // Remove existing rendered rows (keep empty msg)
+  cartItemsEl?.querySelectorAll('.cart-item').forEach(el => el.remove());
+
+  // Render one row per cart entry
   for (const [id, item] of cart) {
     const lineTotal = item.price * item.qty;
-
-    /*
-     * Each cart row:
-     *  [emoji thumb] [name + qty×price meta] [line total]
-     */
     const row = document.createElement('div');
     row.classList.add('cart-item');
     row.dataset.cartId = id;
-
     row.innerHTML = `
-      <div class="cart-item__thumb ${item.colorClass}" aria-hidden="true">
+      <div class="cart-item__thumb ${escapeHtml(item.colorClass)}" aria-hidden="true">
         ${item.emoji}
       </div>
       <div class="cart-item__info">
@@ -348,201 +361,409 @@ function renderCart() {
       </div>
       <span class="cart-item__price">${formatRupiah(lineTotal)}</span>
     `;
-
-    cartItemsEl.appendChild(row);
+    cartItemsEl?.appendChild(row);
   }
 }
 
-/**
- * Escapes HTML special characters to prevent XSS when inserting
- * user-derived data (food names from data attributes) into innerHTML.
- * @param {string} str
- * @returns {string}
- */
-function escapeHtml(str) {
-  return str
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;');
-}
-
-/** Attaches delegated click handler on the food grid for +/− buttons. */
+/** Attaches delegated click listeners on the food grid and cart buttons. */
 function initCartHandlers() {
-  // Delegated listener on the grid — handles all current and future cards
+  // Food grid — delegated handler for +/− buttons
   const grid = document.getElementById('food-grid');
-  if (grid) {
-    grid.addEventListener('click', e => {
-      const btn = e.target.closest('.btn-qty');
-      if (!btn) return;
+  grid?.addEventListener('click', e => {
+    const btn = e.target.closest('.btn-qty');
+    if (!btn) return;
+    const card = btn.closest('.food-card');
+    if (!card) return;
 
-      const card = btn.closest('.food-card');
-      if (!card) return;
+    const id         = card.dataset.id;
+    const name       = card.dataset.name;
+    const price      = parseInt(card.dataset.price, 10);
+    const imgEl      = card.querySelector('.food-card__img');
+    const emoji      = imgEl?.textContent?.trim() ?? '🍽️';
+    const colorClass = [...(imgEl?.classList ?? [])].find(c => c.startsWith('food-card__img--')) ?? '';
 
-      const id         = card.dataset.id;
-      const name       = card.dataset.name;
-      const price      = parseInt(card.dataset.price, 10);
-      const emoji      = card.querySelector('.food-card__img')?.textContent?.trim() ?? '🍽️';
-      const colorClass = [...card.querySelector('.food-card__img').classList]
-                           .find(c => c.startsWith('food-card__img--')) ?? '';
+    if (btn.classList.contains('btn-add')) {
+      addToCart(id, name, price, emoji, colorClass);
+    } else if (btn.classList.contains('btn-minus')) {
+      removeFromCart(id);
+    }
+  });
 
-      if (btn.classList.contains('btn-add')) {
-        addToCart(id, name, price, emoji, colorClass);
-      } else if (btn.classList.contains('btn-minus')) {
-        removeFromCart(id);
-      }
+  // Clear cart button — custom confirm modal (no native confirm())
+  clearCartBtn?.addEventListener('click', () => {
+    if (cart.size === 0) return;
+    openConfirmModal({
+      title: '🗑️ Clear Cart',
+      message: 'Remove <strong>all items</strong> from your cart? This cannot be undone.',
+      confirmLabel: 'Clear All',
+      confirmStyle: 'danger',
+      onConfirm: () => {
+        cart.clear();
+        resetAllCardControls(); // BUG FIX: explicitly reset all card states
+        renderCart();
+      },
     });
-  }
+  });
 
-  // Clear cart button
-  if (clearCartBtn) {
-    clearCartBtn.addEventListener('click', () => {
-      if (cart.size === 0) return;
-      if (!confirm('Remove all items from your cart?')) return;
-
-      // Reset each card's controls
-      cart.forEach((_, id) => {
-        cart.delete(id);
-        syncCardControls(id);
-      });
-
-      renderCart();
-    });
-  }
-
-  // Checkout button
-  if (checkoutBtn) {
-    checkoutBtn.addEventListener('click', openModal);
-  }
+  // Checkout button — opens receipt modal
+  checkoutBtn?.addEventListener('click', () => {
+    if (cart.size === 0) return;
+    openReceiptModal();
+  });
 }
 
 /* =================================================================
-   6. CHECKOUT MODAL
+   5. CUSTOM MODAL SYSTEM
+   Replaces ALL native alert() / confirm() calls.
 ================================================================= */
 
-/** Opens the receipt modal and injects the receipt content. */
-function openModal() {
-  if (cart.size === 0) return;
+/** Currently registered onConfirm callback for the active modal. */
+let _modalOnConfirm = null;
 
-  modalBody.innerHTML = buildReceipt();
+/**
+ * Opens the shared modal overlay.
+ * @param {{ title, bodyHTML, footerHTML, onConfirm? }} opts
+ */
+function openModal({ title, bodyHTML, footerHTML, onConfirm = null }) {
+  _modalOnConfirm = onConfirm;
+
+  modalTitle.textContent = title;
+  modalBody.innerHTML    = bodyHTML;
+  modalFooter.innerHTML  = footerHTML;
+
   modalOverlay.removeAttribute('hidden');
-  // Trap focus inside modal for accessibility
-  modalClose.focus();
+  // Focus the close button for accessibility
+  modalClose?.focus();
 }
 
-/** Closes the checkout modal. */
+/** Closes the modal and clears state. */
 function closeModal() {
   modalOverlay.setAttribute('hidden', '');
+  _modalOnConfirm = null;
+  // Small delay before clearing content so close animation plays
+  setTimeout(() => {
+    modalBody.innerHTML   = '';
+    modalFooter.innerHTML = '';
+  }, 250);
 }
 
 /**
- * Builds an HTML receipt string from the current cart state.
- * @returns {string} HTML
+ * Opens a generic confirm dialog with a danger or success primary action.
+ * @param {{ title, message, confirmLabel, confirmStyle, onConfirm }} opts
  */
-function buildReceipt() {
-  const { subtotal, total } = calcTotals();
-  const now     = new Date();
-  const dateStr = now.toLocaleDateString('id-ID', { day: '2-digit', month: 'long', year: 'numeric' });
-  const timeStr = now.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
-  const orderId = Math.floor(Math.random() * 90000) + 10000; // random 5-digit order #
+function openConfirmModal({ title, message, confirmLabel, confirmStyle = 'danger', onConfirm }) {
+  const styleClass = confirmStyle === 'success'
+    ? 'btn-modal-primary btn-modal-primary--success'
+    : 'btn-modal-primary btn-modal-primary--danger';
 
-  let rows = '';
-  for (const [, item] of cart) {
-    const lineTotal = item.price * item.qty;
-    rows += `
-      <div class="receipt__row">
-        <span>${escapeHtml(item.name)} ×${item.qty}</span>
-        <span>${formatRupiah(lineTotal)}</span>
-      </div>`;
-  }
+  openModal({
+    title,
+    bodyHTML: `<p class="modal-confirm-msg">${message}</p>`,
+    footerHTML: `
+      <button class="btn-modal-secondary" id="mc-cancel">Cancel</button>
+      <button class="${styleClass}" id="mc-confirm">${escapeHtml(confirmLabel)}</button>
+    `,
+    onConfirm,
+  });
 
-  return `
-    <div class="receipt">
-      <p class="receipt__title">AntriGo Canteen</p>
-      <p class="receipt__meta">
-        ${dateStr} — ${timeStr}<br/>
-        Order #${orderId} &nbsp;·&nbsp; Deandra Naufal Maulana
-      </p>
-      <hr class="receipt__divider" />
-      ${rows}
-      <hr class="receipt__divider" />
-      <div class="receipt__row">
-        <span>Subtotal</span>
-        <span>${formatRupiah(subtotal)}</span>
-      </div>
-      <div class="receipt__row">
-        <span>Service fee</span>
-        <span>${formatRupiah(SERVICE_FEE)}</span>
-      </div>
-      <hr class="receipt__divider" />
-      <div class="receipt__row receipt__row--total">
-        <span>TOTAL</span>
-        <span>${formatRupiah(total)}</span>
-      </div>
-      <hr class="receipt__divider" />
-      <p style="text-align:center;color:#8888A8;font-size:11px;margin-top:6px;">
-        Please pick up your order at counter 3. Thank you! 🙏
-      </p>
-    </div>
-  `;
+  // Bind buttons after injection
+  document.getElementById('mc-cancel')?.addEventListener('click', closeModal);
+  document.getElementById('mc-confirm')?.addEventListener('click', () => {
+    closeModal();
+    onConfirm?.();
+  });
 }
 
-/** Attaches event listeners for modal interactions. */
-function initModal() {
-  if (modalClose)   modalClose.addEventListener('click', closeModal);
-  if (modalCancel)  modalCancel.addEventListener('click', closeModal);
+/** Attaches permanent modal overlay close handlers. */
+function initModalHandlers() {
+  // Close button (X)
+  modalClose?.addEventListener('click', closeModal);
 
-  // Confirm order — clear cart and show success toast
-  if (modalConfirm) {
-    modalConfirm.addEventListener('click', () => {
-      closeModal();
-      confirmOrder();
-    });
-  }
+  // Click outside modal box
+  modalOverlay?.addEventListener('click', e => {
+    if (e.target === modalOverlay) closeModal();
+  });
 
-  // Close modal on overlay background click
-  if (modalOverlay) {
-    modalOverlay.addEventListener('click', e => {
-      if (e.target === modalOverlay) closeModal();
-    });
-  }
-
-  // Close modal on Escape key
+  // Escape key
   document.addEventListener('keydown', e => {
-    if (e.key === 'Escape' && !modalOverlay.hasAttribute('hidden')) {
+    if (e.key === 'Escape' && !modalOverlay?.hasAttribute('hidden')) {
       closeModal();
     }
   });
 }
 
 /* =================================================================
-   7. ORDER CONFIRMATION & TOAST
+   6. RECEIPT MODAL
+================================================================= */
+
+/** Generates receipt HTML string from current cart. */
+function buildReceiptHTML() {
+  const { subtotal, total } = calcTotals();
+  const now     = new Date();
+  const dateStr = now.toLocaleDateString('id-ID', { day:'2-digit', month:'long', year:'numeric' });
+  const timeStr = now.toLocaleTimeString('id-ID', { hour:'2-digit', minute:'2-digit' });
+  const orderId = Math.floor(Math.random() * 90000) + 10000;
+
+  let rows = '';
+  for (const [, item] of cart) {
+    rows += `
+      <div class="receipt__row">
+        <span>${escapeHtml(item.name)} ×${item.qty}</span>
+        <span>${formatRupiah(item.price * item.qty)}</span>
+      </div>`;
+  }
+
+  return { orderId, html: `
+    <div class="receipt">
+      <p class="receipt__title">AntriGo Canteen</p>
+      <p class="receipt__meta">
+        ${dateStr} — ${timeStr}<br/>
+        Order <strong>#${orderId}</strong> · Deandra Naufal Maulana
+      </p>
+      <hr class="receipt__divider" />
+      ${rows}
+      <hr class="receipt__divider" />
+      <div class="receipt__row">
+        <span>Subtotal</span><span>${formatRupiah(subtotal)}</span>
+      </div>
+      <div class="receipt__row">
+        <span>Service fee</span><span>${formatRupiah(SERVICE_FEE)}</span>
+      </div>
+      <hr class="receipt__divider" />
+      <div class="receipt__row receipt__row--total">
+        <span>TOTAL</span><span>${formatRupiah(total)}</span>
+      </div>
+      <hr class="receipt__divider" />
+      <p style="text-align:center;color:#8888A8;font-size:11px;margin-top:6px;">
+        Please pick up at Counter 3. Thank you! 🙏
+      </p>
+    </div>
+  `};
+}
+
+/** Opens the checkout receipt modal. */
+function openReceiptModal() {
+  const { orderId, html } = buildReceiptHTML();
+  const { total } = calcTotals();
+
+  openModal({
+    title: '🧾 Order Receipt',
+    bodyHTML: html,
+    footerHTML: `
+      <button class="btn-modal-secondary" id="mr-cancel">Back to Cart</button>
+      <button class="btn-modal-primary btn-modal-primary--success" id="mr-confirm">
+        ✅ Confirm Order
+      </button>
+    `,
+  });
+
+  document.getElementById('mr-cancel')?.addEventListener('click', closeModal);
+  document.getElementById('mr-confirm')?.addEventListener('click', () => {
+    // Capture snapshot before clearing cart
+    const snapshot = buildOrderSnapshot(orderId, total);
+    closeModal();
+    confirmOrder(snapshot);
+  });
+}
+
+/* =================================================================
+   7. ORDER HISTORY
 ================================================================= */
 
 /**
- * Finalises the order: clears cart state, resets card UI,
- * and shows a success toast notification.
+ * Builds a plain-object snapshot of the current cart for history storage.
+ * @param {number} orderId
+ * @param {number} total
+ * @returns {{ id, date, items, total }}
  */
-function confirmOrder() {
-  // Clear all card controls
-  cart.forEach((_, id) => syncCardControls(id));
-  cart.clear();
-  renderCart();
-  showToast();
+function buildOrderSnapshot(orderId, total) {
+  const items = [];
+  for (const [, item] of cart) {
+    items.push({
+      name:      item.name,
+      qty:       item.qty,
+      lineTotal: item.price * item.qty,
+    });
+  }
+  return {
+    id:    orderId,
+    date:  new Date().toLocaleString('id-ID', {
+             day:'2-digit', month:'short', year:'numeric',
+             hour:'2-digit', minute:'2-digit'
+           }),
+    items,
+    total,
+  };
 }
 
 /**
- * Shows the success toast for 3.5 seconds then hides it.
+ * Appends a completed order to the history section.
+ * @param {{ id, date, items, total }} snapshot
+ */
+function appendToHistory(snapshot) {
+  orderHistory.push(snapshot);
+
+  // Remove empty-state placeholder
+  historyEmpty?.setAttribute('hidden', '');
+
+  // Update count badge
+  if (historyCount) {
+    historyCount.textContent = `${orderHistory.length} order${orderHistory.length !== 1 ? 's' : ''}`;
+  }
+
+  // Build history card
+  const card = document.createElement('div');
+  card.classList.add('history-card');
+
+  const itemRows = snapshot.items
+    .map(i => `<li><span>${escapeHtml(i.name)} ×${i.qty}</span><span>${formatRupiah(i.lineTotal)}</span></li>`)
+    .join('');
+
+  card.innerHTML = `
+    <div class="history-card__header">
+      <div>
+        <p class="history-card__id">Order #${snapshot.id}</p>
+        <p class="history-card__date">${snapshot.date}</p>
+      </div>
+      <span class="history-status history-status--done">✅ Completed</span>
+    </div>
+    <ul class="history-card__items">${itemRows}</ul>
+    <div class="history-card__total">
+      <span>Total Paid</span>
+      <span>${formatRupiah(snapshot.total)}</span>
+    </div>
+  `;
+
+  // Prepend so newest order appears at the top
+  historyList?.insertBefore(card, historyList.firstChild);
+}
+
+/** Updates profile stats counters. */
+function updateProfileStats() {
+  const totalOrders = orderHistory.length;
+  const totalSpent  = orderHistory.reduce((sum, o) => sum + o.total, 0);
+  if (statOrders) statOrders.textContent = totalOrders;
+  if (statSpent)  statSpent.textContent  = formatRupiah(totalSpent);
+}
+
+/**
+ * Finalises an order: clears cart + card UI, appends to history,
+ * updates profile stats, shows success toast.
+ * @param {{ id, date, items, total }} snapshot
+ */
+function confirmOrder(snapshot) {
+  // Append to history BEFORE clearing cart state
+  appendToHistory(snapshot);
+  updateProfileStats();
+
+  // Clear cart state
+  cart.clear();
+
+  // EXPLICIT reset of all card controls (BUG FIX)
+  resetAllCardControls();
+
+  // Re-render empty cart
+  renderCart();
+
+  // Show toast
+  showToast();
+}
+
+/* =================================================================
+   8. BELL NOTIFICATION DROPDOWN
+================================================================= */
+
+/** Toggles the notification dropdown open/closed. */
+function toggleNotifDropdown() {
+  const isHidden = notifDropdown?.hasAttribute('hidden');
+
+  if (isHidden) {
+    notifDropdown.removeAttribute('hidden');
+    // Trigger CSS transition by adding .open after display is set
+    requestAnimationFrame(() => notifDropdown.classList.add('open'));
+    bellBtn?.setAttribute('aria-expanded', 'true');
+  } else {
+    closeNotifDropdown();
+  }
+}
+
+/** Closes the dropdown if open. */
+function closeNotifDropdown() {
+  if (!notifDropdown) return;
+  notifDropdown.classList.remove('open');
+  // Wait for transition then set hidden
+  notifDropdown.addEventListener('transitionend', () => {
+    if (!notifDropdown.classList.contains('open')) {
+      notifDropdown.setAttribute('hidden', '');
+    }
+  }, { once: true });
+  bellBtn?.setAttribute('aria-expanded', 'false');
+}
+
+function initBellDropdown() {
+  bellBtn?.addEventListener('click', e => {
+    e.stopPropagation(); // prevent immediate document close
+    toggleNotifDropdown();
+  });
+
+  // "Mark all as read" — removes red dots and bell badge
+  markAllRead?.addEventListener('click', () => {
+    document.querySelectorAll('.notif-dot').forEach(dot => {
+      dot.classList.add('notif-dot--read');
+    });
+    document.querySelectorAll('.notif-item--new').forEach(item => {
+      item.classList.remove('notif-item--new');
+    });
+    const countBadge = document.querySelector('.notif-badge-count');
+    if (countBadge) countBadge.textContent = '0 new';
+    bellBtn?.classList.add('all-read');
+    closeNotifDropdown();
+  });
+
+  // Close dropdown when clicking anywhere outside
+  document.addEventListener('click', e => {
+    if (!document.getElementById('notif-wrap')?.contains(e.target)) {
+      if (!notifDropdown?.hasAttribute('hidden')) {
+        closeNotifDropdown();
+      }
+    }
+  });
+
+  // Close on Escape
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape' && !notifDropdown?.hasAttribute('hidden')) {
+      closeNotifDropdown();
+    }
+  });
+}
+
+/* =================================================================
+   9. PROFILE AVATAR BUTTON → switch to Profile section
+================================================================= */
+function initProfileAvatar() {
+  profileAvatarBtn?.addEventListener('click', () => {
+    switchSection('profile');
+    // Close notif dropdown if open
+    if (!notifDropdown?.hasAttribute('hidden')) closeNotifDropdown();
+  });
+}
+
+/* =================================================================
+   10. SUCCESS TOAST
+================================================================= */
+
+/**
+ * Shows a success toast for ~3.5 seconds, then hides it.
  */
 function showToast() {
+  if (!successToast) return;
   successToast.removeAttribute('hidden');
-  // Force a reflow before adding .show so transition fires
-  void successToast.offsetWidth;
+  void successToast.offsetWidth; // force reflow for transition
   successToast.classList.add('show');
 
   setTimeout(() => {
     successToast.classList.remove('show');
-    // Hide after transition ends (matches --t-base = 0.18s)
+    // Hide fully after CSS transition completes (--t-base = 0.18s)
     setTimeout(() => successToast.setAttribute('hidden', ''), 300);
   }, 3500);
 }
@@ -550,24 +771,22 @@ function showToast() {
 /* =================================================================
    INITIALISATION
 ================================================================= */
-
-/**
- * Main entry point — called once the DOM is fully parsed.
- */
 function init() {
   initGreeting();
   initNavigation();
   initFilters();
   initSearch();
   initCartHandlers();
-  initModal();
+  initModalHandlers();
+  initBellDropdown();
+  initProfileAvatar();
 
-  // Initialise checkout button as disabled (cart starts empty)
+  // Ensure checkout button starts disabled and service fee is hidden
   if (checkoutBtn) checkoutBtn.disabled = true;
+  serviceFeeRow?.setAttribute('hidden', '');
 
-  // Apply default filter to set correct item count on load
+  // Set correct item count on load
   applyFilter('all');
 }
 
-// Run after DOM is ready (script has `defer` attribute in HTML)
 document.addEventListener('DOMContentLoaded', init);

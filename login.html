@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AntriGo — Login</title>
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body class="login-page">
+
+  <!-- =====================================================
+       LOGIN PAGE — centered card layout
+  ===================================================== -->
+  <div class="login-bg" aria-hidden="true">
+    <!-- Decorative blobs -->
+    <div class="login-blob login-blob--1"></div>
+    <div class="login-blob login-blob--2"></div>
+  </div>
+
+  <main class="login-wrap" aria-label="Login">
+    <div class="login-card">
+
+      <!-- Brand -->
+      <div class="login-brand">
+        <div class="sidebar__brand-dot" aria-hidden="true"><span>A</span></div>
+        <span class="sidebar__brand-name" style="color:var(--text-primary);">
+          Antri<em>Go</em>
+        </span>
+      </div>
+
+      <h1 class="login-title">Welcome back 👋</h1>
+      <p class="login-subtitle">Sign in to pre-order your campus meal</p>
+
+      <!-- Login form — JS handles submit, no real auth -->
+      <form class="login-form" id="login-form" novalidate>
+
+        <!-- Student ID -->
+        <div class="login-field">
+          <label for="login-id" class="login-label">Student ID</label>
+          <input
+            id="login-id"
+            class="login-input"
+            type="text"
+            value="124240144"
+            autocomplete="username"
+            required
+            aria-required="true"
+          />
+        </div>
+
+        <!-- Password -->
+        <div class="login-field">
+          <label for="login-pass" class="login-label">Password</label>
+          <div class="login-input-wrap">
+            <input
+              id="login-pass"
+              class="login-input"
+              type="password"
+              value="antriGo2024"
+              autocomplete="current-password"
+              required
+              aria-required="true"
+            />
+            <!-- Toggle password visibility -->
+            <button
+              type="button"
+              class="login-eye"
+              id="toggle-pass"
+              aria-label="Show password"
+            >👁️</button>
+          </div>
+        </div>
+
+        <!-- Error message placeholder -->
+        <p class="login-error" id="login-error" role="alert" hidden></p>
+
+        <!-- Submit -->
+        <button type="submit" class="btn-login" id="login-btn">
+          Sign In →
+        </button>
+
+        <!-- Forgot password — demo only -->
+        <p class="login-footer-text">
+          Forgot your password?
+          <a href="#" class="login-link" onclick="return false;">Contact the registrar</a>
+        </p>
+
+      </form>
+
+      <!-- Demo hint -->
+      <div class="login-demo-hint">
+        <span>🔑</span>
+        Demo credentials are pre-filled. Just click <strong>Sign In</strong>.
+      </div>
+
+    </div>
+  </main>
+
+  <script>
+    // ---- Login page script (inline — no external dependencies needed) ----
+    (function () {
+      'use strict';
+
+      const form      = document.getElementById('login-form');
+      const errorEl   = document.getElementById('login-error');
+      const toggleBtn = document.getElementById('toggle-pass');
+      const passInput = document.getElementById('login-pass');
+      const loginBtn  = document.getElementById('login-btn');
+
+      // Mock valid credentials
+      const VALID_ID   = '124240144';
+      const VALID_PASS = 'antriGo2024';
+
+      /** Toggle password visibility */
+      toggleBtn.addEventListener('click', () => {
+        const isHidden = passInput.type === 'password';
+        passInput.type = isHidden ? 'text' : 'password';
+        toggleBtn.textContent = isHidden ? '🙈' : '👁️';
+        toggleBtn.setAttribute('aria-label', isHidden ? 'Hide password' : 'Show password');
+      });
+
+      /** Handle form submission */
+      form.addEventListener('submit', e => {
+        e.preventDefault();
+        errorEl.setAttribute('hidden', '');
+
+        const id   = document.getElementById('login-id').value.trim();
+        const pass = passInput.value;
+
+        if (id !== VALID_ID || pass !== VALID_PASS) {
+          errorEl.textContent = '⚠️ Invalid Student ID or password. Try again.';
+          errorEl.removeAttribute('hidden');
+          loginBtn.textContent = 'Sign In →';
+          return;
+        }
+
+        // Show loading state
+        loginBtn.textContent = 'Signing in…';
+        loginBtn.disabled = true;
+
+        // Brief delay for UX feel, then redirect
+        setTimeout(() => {
+          window.location.href = 'index.html';
+        }, 600);
+      });
+    }());
+  </script>
+</body>
+</html>

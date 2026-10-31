@@ -8,28 +8,24 @@
 </head>
 <body>
 
-  <!-- =====================================================
-       SKIP LINK — keyboard / screen-reader accessibility
-  ===================================================== -->
+  <!-- Skip link for keyboard users -->
   <a class="skip-link" href="#main-content">Skip to main content</a>
 
-  <!-- =====================================================
-       APP SHELL — three-column grid
-  ===================================================== -->
+  <!-- =================================================================
+       APP SHELL — CSS Grid: [Sidebar | Header + Content | Cart]
+  ================================================================= -->
   <div class="app-shell">
 
-    <!-- =================================================
+    <!-- ===============================================================
          SIDEBAR
-    ================================================= -->
+    ================================================================ -->
     <aside class="sidebar" aria-label="Main navigation">
 
-      <!-- Brand -->
       <div class="sidebar__brand">
         <div class="sidebar__brand-dot" aria-hidden="true"><span>A</span></div>
         <span class="sidebar__brand-name">Antri<em>Go</em></span>
       </div>
 
-      <!-- Primary navigation -->
       <p class="sidebar__section-label">Menu</p>
       <nav>
         <ul class="sidebar__nav" role="list">
@@ -56,7 +52,6 @@
         </ul>
       </nav>
 
-      <!-- Account links -->
       <p class="sidebar__section-label">Account</p>
       <nav>
         <ul class="sidebar__nav" role="list">
@@ -66,6 +61,7 @@
             </button>
           </li>
           <li>
+            <!-- Logout triggers custom confirm modal — no native confirm() -->
             <button class="nav-btn" id="logout-btn">
               <span class="nav-icon" aria-hidden="true">🚪</span> Logout
             </button>
@@ -73,7 +69,6 @@
         </ul>
       </nav>
 
-      <!-- User info footer -->
       <div class="sidebar__footer">
         <div class="sidebar__avatar-sm" aria-hidden="true">DN</div>
         <div class="sidebar__user-info">
@@ -84,9 +79,9 @@
 
     </aside>
 
-    <!-- =================================================
+    <!-- ===============================================================
          TOP HEADER
-    ================================================= -->
+    ================================================================ -->
     <header class="header" role="banner">
       <h1 class="header__title">Order <span>Today</span></h1>
 
@@ -102,20 +97,66 @@
       </div>
 
       <div class="header__actions">
-        <button class="header__notif" aria-label="Notifications">🔔</button>
-        <button class="header__avatar" aria-label="User profile">DN</button>
+        <!-- Bell icon — clicking toggles notification dropdown -->
+        <div class="notif-wrap" id="notif-wrap">
+          <button class="header__notif" id="bell-btn" aria-label="Notifications" aria-expanded="false" aria-haspopup="true">
+            🔔
+          </button>
+          <!-- Notification dropdown — toggled by JS -->
+          <div class="notif-dropdown" id="notif-dropdown" hidden role="menu" aria-label="Notifications">
+            <div class="notif-dropdown__header">
+              <span class="notif-dropdown__title">Notifications</span>
+              <span class="notif-badge-count">3 new</span>
+            </div>
+            <ul class="notif-list" role="list">
+              <li class="notif-item notif-item--new" role="listitem">
+                <span class="notif-dot" aria-hidden="true"></span>
+                <div>
+                  <p class="notif-msg">🍲 Your order <strong>#38421</strong> is being prepared</p>
+                  <small class="notif-time">2 minutes ago</small>
+                </div>
+              </li>
+              <li class="notif-item notif-item--new" role="listitem">
+                <span class="notif-dot" aria-hidden="true"></span>
+                <div>
+                  <p class="notif-msg">✅ Order <strong>#38105</strong> is ready for pickup at Counter 3</p>
+                  <small class="notif-time">15 minutes ago</small>
+                </div>
+              </li>
+              <li class="notif-item notif-item--new" role="listitem">
+                <span class="notif-dot" aria-hidden="true"></span>
+                <div>
+                  <p class="notif-msg">🎉 New discount: <strong>10% off</strong> Meals today until 1 PM</p>
+                  <small class="notif-time">1 hour ago</small>
+                </div>
+              </li>
+              <li class="notif-item" role="listitem">
+                <span class="notif-dot notif-dot--read" aria-hidden="true"></span>
+                <div>
+                  <p class="notif-msg">🕒 Order <strong>#37980</strong> was delivered successfully</p>
+                  <small class="notif-time">Yesterday</small>
+                </div>
+              </li>
+            </ul>
+            <div class="notif-dropdown__footer">
+              <button class="notif-mark-read" id="mark-all-read">Mark all as read</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Profile avatar — clicking navigates to Profile section -->
+        <button class="header__avatar" id="profile-avatar-btn" aria-label="View profile">DN</button>
       </div>
     </header>
 
-    <!-- =================================================
-         MAIN CONTENT — section panels
-    ================================================= -->
+    <!-- ===============================================================
+         MAIN CONTENT — page sections
+    ================================================================ -->
     <main class="content" id="main-content" aria-label="Main content">
 
-      <!-- ---- HOME SECTION ---- -->
+      <!-- ---- HOME ---- -->
       <section id="section-home" class="page-section active" aria-label="Home">
 
-        <!-- Welcome banner -->
         <div class="welcome-bar">
           <div class="welcome-bar__text">
             <h2 id="greeting-text">Good morning, Deandra!</h2>
@@ -142,29 +183,30 @@
         <section aria-labelledby="menu-heading">
           <div class="section-header">
             <h3 id="menu-heading">Today's Menu</h3>
-            <span id="visible-count" class="count-badge" aria-live="polite">6 items</span>
+            <span id="visible-count" class="count-badge" aria-live="polite">8 items</span>
           </div>
 
-          <!-- data-category is used by the JS filter -->
           <div class="food-grid" id="food-grid" role="list" aria-label="Food items">
 
-            <article class="food-card" data-id="1" data-category="meal" data-name="Nasi Ayam Geprek" data-price="18000" role="listitem">
+            <article class="food-card" data-id="1" data-category="meal"
+              data-name="Nasi Ayam Geprek" data-price="18000" role="listitem">
               <div class="food-card__img food-card__img--red" aria-hidden="true">🍗</div>
               <div class="food-card__body">
                 <span class="food-card__tag food-card__tag--meal">Meal</span>
                 <h4 class="food-card__name">Nasi Ayam Geprek</h4>
                 <div class="food-card__footer">
                   <span class="food-card__price">Rp 18.000</span>
-                  <div class="card-qty-ctrl" aria-label="Quantity control">
-                    <button class="btn-qty btn-minus" data-id="1" aria-label="Remove one Nasi Ayam Geprek" hidden>−</button>
+                  <div class="card-qty-ctrl">
+                    <button class="btn-qty btn-minus" data-id="1" hidden>−</button>
                     <span class="card-qty-val" aria-live="polite"></span>
-                    <button class="btn-qty btn-add" data-id="1" aria-label="Add Nasi Ayam Geprek to cart">+</button>
+                    <button class="btn-qty btn-add" data-id="1" aria-label="Add Nasi Ayam Geprek">+</button>
                   </div>
                 </div>
               </div>
             </article>
 
-            <article class="food-card" data-id="2" data-category="meal" data-name="Mie Goreng Spesial" data-price="15000" role="listitem">
+            <article class="food-card" data-id="2" data-category="meal"
+              data-name="Mie Goreng Spesial" data-price="15000" role="listitem">
               <div class="food-card__img food-card__img--amber" aria-hidden="true">🍜</div>
               <div class="food-card__body">
                 <span class="food-card__tag food-card__tag--meal">Meal</span>
@@ -172,15 +214,16 @@
                 <div class="food-card__footer">
                   <span class="food-card__price">Rp 15.000</span>
                   <div class="card-qty-ctrl">
-                    <button class="btn-qty btn-minus" data-id="2" aria-label="Remove one Mie Goreng Spesial" hidden>−</button>
+                    <button class="btn-qty btn-minus" data-id="2" hidden>−</button>
                     <span class="card-qty-val" aria-live="polite"></span>
-                    <button class="btn-qty btn-add" data-id="2" aria-label="Add Mie Goreng Spesial to cart">+</button>
+                    <button class="btn-qty btn-add" data-id="2" aria-label="Add Mie Goreng Spesial">+</button>
                   </div>
                 </div>
               </div>
             </article>
 
-            <article class="food-card" data-id="3" data-category="snack" data-name="Kentang Goreng" data-price="9000" role="listitem">
+            <article class="food-card" data-id="3" data-category="snack"
+              data-name="Kentang Goreng" data-price="9000" role="listitem">
               <div class="food-card__img food-card__img--green" aria-hidden="true">🍟</div>
               <div class="food-card__body">
                 <span class="food-card__tag food-card__tag--snack">Snack</span>
@@ -188,15 +231,16 @@
                 <div class="food-card__footer">
                   <span class="food-card__price">Rp 9.000</span>
                   <div class="card-qty-ctrl">
-                    <button class="btn-qty btn-minus" data-id="3" aria-label="Remove one Kentang Goreng" hidden>−</button>
+                    <button class="btn-qty btn-minus" data-id="3" hidden>−</button>
                     <span class="card-qty-val" aria-live="polite"></span>
-                    <button class="btn-qty btn-add" data-id="3" aria-label="Add Kentang Goreng to cart">+</button>
+                    <button class="btn-qty btn-add" data-id="3" aria-label="Add Kentang Goreng">+</button>
                   </div>
                 </div>
               </div>
             </article>
 
-            <article class="food-card" data-id="4" data-category="drink" data-name="Es Teh Manis" data-price="5000" role="listitem">
+            <article class="food-card" data-id="4" data-category="drink"
+              data-name="Es Teh Manis" data-price="5000" role="listitem">
               <div class="food-card__img food-card__img--blue" aria-hidden="true">🧊</div>
               <div class="food-card__body">
                 <span class="food-card__tag food-card__tag--drink">Drink</span>
@@ -204,15 +248,16 @@
                 <div class="food-card__footer">
                   <span class="food-card__price">Rp 5.000</span>
                   <div class="card-qty-ctrl">
-                    <button class="btn-qty btn-minus" data-id="4" aria-label="Remove one Es Teh Manis" hidden>−</button>
+                    <button class="btn-qty btn-minus" data-id="4" hidden>−</button>
                     <span class="card-qty-val" aria-live="polite"></span>
-                    <button class="btn-qty btn-add" data-id="4" aria-label="Add Es Teh Manis to cart">+</button>
+                    <button class="btn-qty btn-add" data-id="4" aria-label="Add Es Teh Manis">+</button>
                   </div>
                 </div>
               </div>
             </article>
 
-            <article class="food-card" data-id="5" data-category="meal" data-name="Bakso Kuah" data-price="16000" role="listitem">
+            <article class="food-card" data-id="5" data-category="meal"
+              data-name="Bakso Kuah" data-price="16000" role="listitem">
               <div class="food-card__img food-card__img--purple" aria-hidden="true">🍲</div>
               <div class="food-card__body">
                 <span class="food-card__tag food-card__tag--meal">Meal</span>
@@ -220,15 +265,16 @@
                 <div class="food-card__footer">
                   <span class="food-card__price">Rp 16.000</span>
                   <div class="card-qty-ctrl">
-                    <button class="btn-qty btn-minus" data-id="5" aria-label="Remove one Bakso Kuah" hidden>−</button>
+                    <button class="btn-qty btn-minus" data-id="5" hidden>−</button>
                     <span class="card-qty-val" aria-live="polite"></span>
-                    <button class="btn-qty btn-add" data-id="5" aria-label="Add Bakso Kuah to cart">+</button>
+                    <button class="btn-qty btn-add" data-id="5" aria-label="Add Bakso Kuah">+</button>
                   </div>
                 </div>
               </div>
             </article>
 
-            <article class="food-card" data-id="6" data-category="drink" data-name="Boba Milk Tea" data-price="12000" role="listitem">
+            <article class="food-card" data-id="6" data-category="drink"
+              data-name="Boba Milk Tea" data-price="12000" role="listitem">
               <div class="food-card__img food-card__img--teal" aria-hidden="true">🧋</div>
               <div class="food-card__body">
                 <span class="food-card__tag food-card__tag--drink">Drink</span>
@@ -236,15 +282,16 @@
                 <div class="food-card__footer">
                   <span class="food-card__price">Rp 12.000</span>
                   <div class="card-qty-ctrl">
-                    <button class="btn-qty btn-minus" data-id="6" aria-label="Remove one Boba Milk Tea" hidden>−</button>
+                    <button class="btn-qty btn-minus" data-id="6" hidden>−</button>
                     <span class="card-qty-val" aria-live="polite"></span>
-                    <button class="btn-qty btn-add" data-id="6" aria-label="Add Boba Milk Tea to cart">+</button>
+                    <button class="btn-qty btn-add" data-id="6" aria-label="Add Boba Milk Tea">+</button>
                   </div>
                 </div>
               </div>
             </article>
 
-            <article class="food-card" data-id="7" data-category="dessert" data-name="Es Krim Coklat" data-price="10000" role="listitem">
+            <article class="food-card" data-id="7" data-category="dessert"
+              data-name="Es Krim Coklat" data-price="10000" role="listitem">
               <div class="food-card__img food-card__img--amber" aria-hidden="true">🍦</div>
               <div class="food-card__body">
                 <span class="food-card__tag food-card__tag--dessert">Dessert</span>
@@ -252,15 +299,16 @@
                 <div class="food-card__footer">
                   <span class="food-card__price">Rp 10.000</span>
                   <div class="card-qty-ctrl">
-                    <button class="btn-qty btn-minus" data-id="7" aria-label="Remove one Es Krim Coklat" hidden>−</button>
+                    <button class="btn-qty btn-minus" data-id="7" hidden>−</button>
                     <span class="card-qty-val" aria-live="polite"></span>
-                    <button class="btn-qty btn-add" data-id="7" aria-label="Add Es Krim Coklat to cart">+</button>
+                    <button class="btn-qty btn-add" data-id="7" aria-label="Add Es Krim Coklat">+</button>
                   </div>
                 </div>
               </div>
             </article>
 
-            <article class="food-card" data-id="8" data-category="snack" data-name="Pisang Goreng" data-price="7000" role="listitem">
+            <article class="food-card" data-id="8" data-category="snack"
+              data-name="Pisang Goreng" data-price="7000" role="listitem">
               <div class="food-card__img food-card__img--green" aria-hidden="true">🍌</div>
               <div class="food-card__body">
                 <span class="food-card__tag food-card__tag--snack">Snack</span>
@@ -268,9 +316,9 @@
                 <div class="food-card__footer">
                   <span class="food-card__price">Rp 7.000</span>
                   <div class="card-qty-ctrl">
-                    <button class="btn-qty btn-minus" data-id="8" aria-label="Remove one Pisang Goreng" hidden>−</button>
+                    <button class="btn-qty btn-minus" data-id="8" hidden>−</button>
                     <span class="card-qty-val" aria-live="polite"></span>
-                    <button class="btn-qty btn-add" data-id="8" aria-label="Add Pisang Goreng to cart">+</button>
+                    <button class="btn-qty btn-add" data-id="8" aria-label="Add Pisang Goreng">+</button>
                   </div>
                 </div>
               </div>
@@ -278,15 +326,14 @@
 
           </div><!-- /food-grid -->
 
-          <!-- Empty state when filter finds nothing -->
           <p class="empty-state" id="empty-state" hidden aria-live="polite">
             No items found in this category. 🍽️
           </p>
-
         </section>
+
       </section><!-- /section-home -->
 
-      <!-- ---- MENU SECTION ---- -->
+      <!-- ---- MENU ---- -->
       <section id="section-menu" class="page-section" aria-label="Full Menu" hidden>
         <div class="placeholder-page">
           <div class="placeholder-icon">🍽️</div>
@@ -295,16 +342,22 @@
         </div>
       </section>
 
-      <!-- ---- HISTORY SECTION ---- -->
+      <!-- ---- HISTORY ---- -->
       <section id="section-history" class="page-section" aria-label="Order History" hidden>
-        <div class="placeholder-page">
-          <div class="placeholder-icon">🕒</div>
-          <h2>Order History</h2>
-          <p>Your past orders will appear here. No orders yet!</p>
+        <div class="section-header">
+          <h3>Order History</h3>
+          <span id="history-count" class="count-badge">0 orders</span>
+        </div>
+        <!-- History list — populated dynamically by JS on each confirmed order -->
+        <div id="history-list" class="history-list" aria-label="Past orders" aria-live="polite">
+          <div class="history-empty" id="history-empty">
+            <div class="placeholder-icon">🕒</div>
+            <p>No orders yet. Place your first order!</p>
+          </div>
         </div>
       </section>
 
-      <!-- ---- SETTINGS SECTION ---- -->
+      <!-- ---- SETTINGS ---- -->
       <section id="section-settings" class="page-section" aria-label="Settings" hidden>
         <div class="placeholder-page">
           <div class="placeholder-icon">⚙️</div>
@@ -313,20 +366,37 @@
         </div>
       </section>
 
-      <!-- ---- PROFILE SECTION ---- -->
+      <!-- ---- PROFILE ---- -->
       <section id="section-profile" class="page-section" aria-label="Profile" hidden>
-        <div class="placeholder-page">
-          <div class="placeholder-icon">👤</div>
-          <h2>Deandra Naufal Maulana</h2>
-          <p>Student ID: 124240144 &nbsp;·&nbsp; Faculty of Computer Science</p>
+        <div class="profile-card">
+          <div class="profile-avatar-lg" aria-hidden="true">DN</div>
+          <div class="profile-info">
+            <h2 class="profile-name">Deandra Naufal Maulana</h2>
+            <p class="profile-id">Student ID: 124240144</p>
+            <p class="profile-faculty">Faculty of Computer Science · Universitas Pertamina</p>
+          </div>
+          <div class="profile-stats">
+            <div class="profile-stat">
+              <span class="profile-stat__val" id="stat-orders">0</span>
+              <span class="profile-stat__label">Orders</span>
+            </div>
+            <div class="profile-stat">
+              <span class="profile-stat__val" id="stat-spent">Rp 0</span>
+              <span class="profile-stat__label">Total Spent</span>
+            </div>
+            <div class="profile-stat">
+              <span class="profile-stat__val">⭐ 4.9</span>
+              <span class="profile-stat__label">Rating</span>
+            </div>
+          </div>
         </div>
       </section>
 
     </main>
 
-    <!-- =================================================
-         RIGHT PANEL — CART / ORDER SUMMARY
-    ================================================= -->
+    <!-- ===============================================================
+         CART PANEL (RIGHT SIDEBAR)
+    ================================================================ -->
     <aside class="cart-panel" id="cart" aria-label="Order summary">
 
       <div class="cart-panel__header">
@@ -334,42 +404,43 @@
           My Order
           <span class="cart-badge" id="cart-count" aria-label="items in cart">0</span>
         </h2>
-        <button class="cart-panel__clear" id="clear-cart-btn" aria-label="Clear all cart items">Clear all</button>
+        <!-- Triggers custom confirm modal -->
+        <button class="cart-panel__clear" id="clear-cart-btn" aria-label="Clear all items">
+          Clear all
+        </button>
       </div>
 
-      <!-- Dynamic cart item list — populated by JS -->
+      <!-- Cart items — rendered by JS -->
       <div class="cart-items" id="cart-items" aria-label="Items in your order">
-        <p class="cart-empty-msg" id="cart-empty-msg">Your cart is empty. Add items from the menu!</p>
+        <p class="cart-empty-msg" id="cart-empty-msg">
+          Your cart is empty. Add items from the menu!
+        </p>
       </div>
 
       <div class="cart-divider" role="separator"></div>
 
-      <!-- Totals — updated by JS -->
+      <!-- Totals -->
       <div class="cart-totals" id="cart-totals">
         <div class="cart-totals__row cart-totals__row--subtotal">
           <span>Subtotal</span>
           <span id="subtotal-val">Rp 0</span>
         </div>
-        <div class="cart-totals__row">
+        <!-- Service fee row — hidden when cart is empty -->
+        <div class="cart-totals__row" id="service-fee-row" hidden>
           <span>Service fee</span>
           <span>Rp 1.000</span>
-        </div>
-        <div class="cart-totals__row">
-          <span>Discount</span>
-          <span class="discount-text">− Rp 0</span>
         </div>
         <div class="cart-divider-inner" role="separator"></div>
         <div class="cart-totals__row cart-totals__row--total">
           <span>Total</span>
-          <span class="cart-totals__value--accent" id="total-val">Rp 1.000</span>
+          <span class="cart-totals__value--accent" id="total-val">Rp 0</span>
         </div>
       </div>
 
       <div class="cart-divider" role="separator"></div>
 
-      <!-- Checkout button -->
       <div class="cart-panel__checkout">
-        <button class="btn-checkout" id="checkout-btn" aria-label="Proceed to checkout">
+        <button class="btn-checkout" id="checkout-btn" disabled aria-label="Proceed to checkout">
           Checkout
         </button>
         <p class="checkout-note">🔒 Secure canteen payment gateway</p>
@@ -379,28 +450,28 @@
 
   </div><!-- /app-shell -->
 
-  <!-- =================================================
-       CHECKOUT MODAL — hidden by default, shown by JS
-  ================================================= -->
-  <div class="modal-overlay" id="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="modal-title" hidden>
-    <div class="modal">
+  <!-- =================================================================
+       CUSTOM MODAL — shared overlay, content injected by JS
+  ================================================================= -->
+  <div class="modal-overlay" id="modal-overlay" role="dialog" aria-modal="true"
+       aria-labelledby="modal-title" hidden>
+    <div class="modal" id="modal-box">
       <div class="modal__header">
-        <h2 id="modal-title">🧾 Order Receipt</h2>
-        <button class="modal__close" id="modal-close" aria-label="Close receipt">✕</button>
+        <h2 id="modal-title">Confirm</h2>
+        <button class="modal__close" id="modal-close" aria-label="Close">✕</button>
       </div>
       <div class="modal__body" id="modal-body">
-        <!-- Receipt content injected by JS -->
+        <!-- Content injected per use-case -->
       </div>
-      <div class="modal__footer">
-        <button class="btn-modal-confirm" id="modal-confirm">✅ Confirm Order</button>
-        <button class="btn-modal-cancel" id="modal-cancel">Back to Cart</button>
+      <div class="modal__footer" id="modal-footer">
+        <!-- Buttons injected per use-case -->
       </div>
     </div>
   </div>
 
-  <!-- =================================================
-       SUCCESS TOAST — shown after order confirmed
-  ================================================= -->
+  <!-- =================================================================
+       SUCCESS TOAST
+  ================================================================= -->
   <div class="toast" id="success-toast" aria-live="assertive" hidden>
     ✅ Order placed! Check your pickup time at the canteen.
   </div>
